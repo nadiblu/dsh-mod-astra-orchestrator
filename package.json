@@ -1,0 +1,35 @@
+{
+  "name": "dsh-mod-astra-orchestrator",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DSH mod: gpt-6-astra orchestrator + reviewer on the ChatGPT subscription, pinned DeepSeek-V41-Flash workers at high reasoning.",
+  "type": "module",
+  "license": "(MIT AND Apache-2.0)",
+  "engines": {
+    "node": ">=20.10"
+  },
+  "bin": {
+    "astra-orchestrator": "./install.mjs"
+  },
+  "scripts": {
+    "install-mod": "node install.mjs",
+    "test": "node scripts/test-settings-merge.mjs && node scripts/test-preset-composition.mjs"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "files": [
+    "install.mjs",
+    "cordis.patch.yml",
+    "preset",
+    "skills",
+    "guides",
+    "scripts",
+    "README.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md",
+    "licenses"
+  ]
+}

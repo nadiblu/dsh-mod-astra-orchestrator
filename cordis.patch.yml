@@ -1,0 +1,80 @@
+# dsh-mod-astra-orchestrator — bundle layer.
+#
+# Applied after `@deepseek-ai/dsh-base` and the app bundle, so each row below
+# overrides the earlier one by id. A patch entry REPLACES the targeted row's
+# whole `config`, which is why every field this mod wants to keep is restated.
+#
+# Installed with:
+#   dsh plugin --profile web add <this package>
+# which reconciles `dsh.profile.bundles` from the manifest
+# (`"dsh": { "bundle": { "patch": "./cordis.patch.yml" } }`).
+#
+# Two independent jobs:
+#   1. add this package's preset directory to the preset roster
+#   2. register the ChatGPT-subscription route (`openai-codex`) so the
+#      orchestrator and reviewer models exist as soon as the profile boots
+#
+# User settings (`$DSH_HOME/settings.yaml`) still layer over both rows: a saved
+# `agent-default-model` selection wins over the composition value below, and
+# `llm-pi-ai:` settings merge per provider.
+
+# ── preset roster ───────────────────────────────────────────────────────────
+#
+# `ASTRA_ORCHESTRATOR_PRESETS` is written to `$DSH_HOME/.env` by
+# `install.mjs --bundle` (it must not use a `DSH_` prefix: those names are
+# bootstrap-only and a `.env` layer refuses them). When the variable is absent —
+# a plain `pnpm add` without the installer — no extra root is added and the
+# roster keeps its shipped and user roots untouched.
+- id: agent-presets
+  config:
+    default: standard
+    includeShippedRoot: true
+    includeUserRoot: true
+    roots: !!js 'process.env.ASTRA_ORCHESTRATOR_PRESETS ? [{ path: process.env.ASTRA_ORCHESTRATOR_PRESETS, trust: "user" }] : []'
+
+# ── model routes ────────────────────────────────────────────────────────────
+#
+# `openai-codex` is a catalog provider shipped by pi-ai whose only auth is OAuth
+# with a ChatGPT Plus/Pro subscription (`isSubscription: true`, baseUrl
+# `https://chatgpt.com/backend-api`). An empty route config is enough: the
+# installed catalog supplies the endpoint, the protocol, and the eight models
+# (`gpt-6-astra`, `gpt-5.6-luna`, `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.5`,
+# `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.3-codex-spark`).
+#
+# No API key is configured and none is needed — but a sign-in IS required, and
+# this build ships no sign-in surface (no `dsh-authorization` mount, no login UI,
+# no CLI verb). Run `install.mjs --login`: it drives the same pi-ai OAuth flow
+# (device code by default) out of process and stores the grant in the credential
+# plane as `llm-pi-ai/openai-codex`, refreshed there under the store's
+# cross-process lock. A deployed key can still override the grant through
+# `apiKeyEnv` in settings.
+- id: llm-pi-ai
+  config:
+    providers:
+      openai-codex: {}
+
+# ── default route for fresh agents ──────────────────────────────────────────
+#
+# The orchestrator route. This is the composition default only: when the user
+# has a saved `agent-default-model` selection in settings, that selection wins
+# at session creation — run `install.mjs --activate` to write it.
+- id: agent-default-model
+  config:
+    provider: openai-codex
+    model: gpt-6-astra
+
+# ── sign-in seam ────────────────────────────────────────────────────────────
+#
+# `@deepseek-ai/dsh-authorization` is not part of the shipped bundles, and
+# `dsh-llm-pi-ai` registers its provider login flow only when the service is
+# present (`ctx.inject(['authorization'], …)`). Mounting it here makes the
+# ChatGPT OAuth flow part of the composed tree, so any surface that can start an
+# authorization attempt — a client page, an ACP/SDK caller, a future tool — has
+# something to start.
+#
+# This mod does NOT depend on that surface: `install.mjs --login` runs the same
+# pi-ai flow out of process (device-code or browser) and writes the grant
+# straight into the credential store, because this build ships no sign-in UI.
+- insert:
+    - id: authorization
+      name: '@deepseek-ai/dsh-authorization'

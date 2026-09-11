@@ -1,0 +1,18 @@
+.test-home/
+node_modules/
+
+# Logs and local test artifacts
+*.log
+npm-debug.log*
+test-results/
+coverage/
+*.tmp
+
+# Local environment and credentials — never publish
+.env
+.env.*
+!.env.example
+.credentials.yaml
+credentials*.json
+*.pem
+*.key

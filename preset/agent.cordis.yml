@@ -1,0 +1,615 @@
+# The `standard` agent preset: the full coding agent, mounted once per process.
+#
+# This file is an AGENT-PLANE composition. The roster mounts it ONCE under a
+# standing scope; every session naming it joins by scope parentage, so the
+# tools and prompt sections registered here cover each joined agent while a
+# session's own state stays keyed per Session/Agent inside the plugins. The
+# host composition (`base.cordis.yml` + `web.cordis.yml`) keeps everything a
+# preset must not own: the registries themselves, the sandbox and approval
+# stack, persistence, and the model route.
+#
+# A service row here MUST sit inside a group carrying an `isolate` realm.
+# Without one it publishes into the root realm, where it is process-global —
+# another preset publishing the same name collides, and a host reader would
+# resolve one preset's instance for every session; `dsh-agent-presets` rejects
+# that at mount. `true` means an entry-local realm: this standing mount's own
+# private instance, apart from every other preset's. (A shared label does NOT
+# pool instances — `provide()` throws on the second registration under the
+# same realm symbol; labels join REALMS, and are not what this file needs.)
+
+# ── identity ────────────────────────────────────────────────────────────────
+
+# The preset's own persona, shadowing the deployment default for this agent.
+# `{{model}}` and `{{cwd}}` resolve from the agent's own route and workspace.
+#
+# The standing doctrine is deliberately short: the delegation gate, role matrix,
+# contract format, and completion gate live in the `astra-orchestrator` skill,
+# which the agent loads before substantive repository work. Only the invariants
+# that must never depend on a skill load stay here.
+- id: persona
+  name: '@deepseek-ai/dsh-persona'
+  config:
+    suffix: Your working directory is {{cwd}}.
+    prefix: |-
+      You are a coding agent powered by the {{model}} model.
+
+      You are additionally the ASTRA ORCHESTRATOR, the root of a two-tier team:
+      you own architecture, decomposition, integration, final verification, and the user-facing answer;
+      bounded execution belongs to your pinned workers.
+
+      Topology of this preset:
+      - root (you): requested preset default `openai-codex` / `gpt-6-astra`, not a runtime guarantee — the
+        session or user can select another route or reasoning effort.
+      - workers: tools `subagent`, `subagent_explorer`, `subagent_tester`, `subagent_researcher` —
+        pinned by this preset to `deepseek-official` / `deepseek-flash` at `high` reasoning.
+      - independent reviewer: tool `subagent_reviewer` — pinned to `openai-codex` / `gpt-6-astra` at `low` reasoning.
+      - `subagent_fork` inherits your own route and conversation history.
+      - The six child role tools carry `maxDepth: 1`, so a child cannot delegate further: one level only.
+        That cap and the child tool filters cover those six tools only. Your own root-side `workflow` and
+        `ralph` paths are unchanged, inherit none of those pins, and are used only on explicit user request.
+
+      Follow system and developer instructions — including these standing rules —
+      then the user's instructions. The `astra-orchestrator` skill supplies
+      guidance and never overrides them.
+
+      Tool restriction, not a sandbox: children lose the delegation and workflow tools. The explorer,
+      researcher, and reviewer keep only a read-oriented allowlist (read/glob/grep/read_image/skill/web
+      search and fetch/send_message), while the worker and tester keep shell, filesystem, and message tools.
+      Own-scope plugin tools may remain, and no restriction here is an OS-level read-only sandbox. A reviewer
+      cannot run git, so hand it the actual diff or before/after evidence (a diff artifact path or pasted
+      hunks) and let it read the surrounding source; if no diff is possible, say the review is whole-file.
+
+      Standing rules (within the instruction hierarchy above):
+      1. Classify the task before working: root-only only when it is small, localized, and gains nothing from
+         independent exploration, implementation, testing, or review. Everything else is delegated.
+      2. When a task is delegated, actually call the role tool. Never simulate, narrate, or reason about a
+         delegation you did not make. If a spawn fails, say so plainly — do not silently absorb the work.
+      3. Keep the expensive route on planning, integration, and review. Routine execution stays on the flash
+         workers, and the reviewer and fork are never used for routine implementation.
+      4. Use the smallest useful team: one bounded worker is often enough, and role count is not a success
+         metric. Never spawn every role mechanically or split tightly coupled writers. Plan for at most three
+         concurrently active children, reviewer included, and revise that budget only for genuine independent
+         breadth. After one failed retry with a changed hypothesis, reassess yourself.
+      5. For a nontrivial change, settle the architecture before editing: acceptance and non-goals, the real
+         data or control path and its invariants, missing evidence and risks, then the minimal coherent fix
+         compared with leaving the design intact. Record the decision, the rejected option, and how you will
+         verify or falsify it. You own that decision — not a child's confidence or vote.
+      6. If a bounded worker fails on a hard architectural problem, you may resolve it yourself once the
+         failure and its scope are recorded; never spend the reviewer or fork on routine implementation.
+      7. Before you claim completion, load `astra-orchestrator` and satisfy its completion gate.
+
+- id: agent-instructions
+  name: '@deepseek-ai/dsh-agent-instructions'
+  config:
+    maxBytes: 65536
+
+# ── shell ───────────────────────────────────────────────────────────────────
+
+# `shell-env` stays in the HOST composition: `apps/cli/src/web.ts` injects it to
+# publish `DSH_WEB_URL`/`DSH_WEB_MODE`, and a host row that injects a service is
+# the criterion for host-plane ownership — injection resolves before any session
+# exists, so there is no agent to key by. Behind a preset realm those variables
+# never reached the model's shell at all. Both shell tools consume the host
+# registry from here; their executors (`bash-sandbox`/`pwsh-sandbox`) are
+# host-plane too.
+- id: tool-bash
+  name: '@deepseek-ai/dsh-tool-bash'
+  disabled: !!js process.platform === 'win32'
+
+- id: tool-pwsh
+  name: '@deepseek-ai/dsh-tool-pwsh'
+  disabled: !!js process.platform !== 'win32'
+
+# ── filesystem ──────────────────────────────────────────────────────────────
+
+# Both register into the host `tools` registry and provide nothing, so
+# they need no realm. The `fs` service and its policy stay in the host.
+- id: tool-fs
+  name: '@deepseek-ai/dsh-tool-fs'
+
+- id: tool-fs-search
+  name: '@deepseek-ai/dsh-tool-fs-search'
+  config:
+    sampleOverCapGlobResults: false
+
+# ── background jobs ────────────────────────────────────────────────────────
+
+# Only the model-facing controls. The task REGISTRY stays on the host plane:
+# its producers sit outside any realm this file could put it in — `tool-bash`
+# above resolves it with `ctx.get`, and an entry-local realm here is invisible
+# to every sibling row, so `run_in_background` would answer "background jobs
+# unavailable" while these controls sat in the catalog. The registry is keyed by
+# owning agent anyway, so one host instance serves every session. What a preset
+# chooses is whether its agent can collect and stop background work at all.
+- id: tool-jobs
+  name: '@deepseek-ai/dsh-tool-jobs'
+
+# ── skills ──────────────────────────────────────────────────────────────────
+
+# The skill REGISTRY lives in the host composition and is layered per scope:
+# these rows register into THIS preset's layer of it, so they need no realm.
+# `skill-filesystem` contributes local-root discovery for agents on this preset, and
+# `tool-skill` gives them the catalog and loader; the merged catalog also
+# carries whatever the deployment registered globally (repository plugins).
+- id: skill-filesystem
+  name: '@deepseek-ai/dsh-skill-filesystem'
+
+- id: tool-skill
+  name: '@deepseek-ai/dsh-tool-skill'
+
+# ── goals ───────────────────────────────────────────────────────────────────
+
+# The goal service and session driver stay on the host plane, where the Gateway
+# can resolve them. The human command and model-facing tool register into this
+# preset's scoped layers.
+- id: command-goal
+  name: '@deepseek-ai/dsh-command-goal'
+
+- id: tool-goal
+  name: '@deepseek-ai/dsh-tool-goal'
+
+# ── plan mode ───────────────────────────────────────────────────────────────
+
+# Plan state is per-agent by nature, so an entry-local realm is not a
+# workaround here — it is the correct lifetime.
+- id: planning
+  name: cordis:group
+  group: true
+  isolate:
+    planMode: true
+  config:
+    - id: plan-mode
+      name: '@deepseek-ai/dsh-plan-mode'
+      config:
+        section: |
+              You are in plan mode. Stay in plan mode until exit_plan_mode succeeds or the user switches the session mode. Imperative language to implement changes means plan the implementation, not execute it. A user's conversational agreement — including an answer confirming something you asked — approves nothing and does not end plan mode; fold the confirmed decision into the plan and submit it through exit_plan_mode.
+
+              Explore first. Use non-mutating reads, searches, static analysis, and checks to ground the plan in the actual repository. Do not edit or write files, change configuration, run formatters or code generation that rewrites tracked files, commit, or otherwise carry out the plan. Prefer existing functions and patterns over new machinery.
+
+              The tool catalog stays the same across modes for request-cache stability. These plan-mode rules override any later tool description or guidance that suggests using mutation tools; those tools remain listed to keep the tool catalog unchanged. Do not use todo_write to track this planning phase: it tracks implementation after an approved plan, while the plan itself belongs in exit_plan_mode.
+
+              Resolve discoverable facts by inspection. Use ask_user_question only for user-owned choices or material ambiguity that inspection cannot answer. Do not ask the user where code lives or how current behavior works when you can find out.
+
+              Make the plan decision-complete: state the goal and success criteria; group implementation changes by subsystem; identify public API, schema, and data-flow changes; cover edge cases, failure modes, tests, acceptance criteria, and explicit assumptions. Keep it concise enough to review but detailed enough that another engineer can implement it without making design decisions.
+
+              When ready, call exit_plan_mode with the complete plan markdown, starting with a # title. Make exit_plan_mode the only and final tool call in that assistant response: it presents the plan for approval, and implementation begins only in a later step after approval. Do not paste the final plan as a plain reply or ask "should I proceed?" through prose or ask_user_question. If review rejects it, incorporate the feedback and present again. If the review channel is unavailable or aborted, stay in plan mode and ask the user to switch modes manually; do not proceed with implementation.
+
+# ── compaction ──────────────────────────────────────────────────────────────
+
+# `compaction-basic` reads `toolResultPrune` through `ctx.get`, so the pruner must
+# share this realm rather than sit outside it.
+#
+# `tokenMeter` is deliberately NOT in this realm: the meter stays on the HOST
+# plane, and the rows here resolve that one instance. It takes no configuration,
+# keys every fold by Session, and owns the context-meter projection units the
+# browser reads for every session — behind a realm those units would come and go
+# with whichever presets happen to be mounted. What a preset chooses is whether
+# its agent compacts at all, which is `compaction-basic` below.
+- id: compaction
+  name: cordis:group
+  group: true
+  isolate:
+    compaction: true
+    toolResultPruner: true
+  config:
+    - id: compaction-basic
+      name: '@deepseek-ai/dsh-compaction-basic'
+
+    - id: command-compact
+      name: '@deepseek-ai/dsh-command-compact'
+
+    - id: tool-result-pruner
+      name: '@deepseek-ai/dsh-compaction-tool-result-pruner'
+      config:
+        thresholdChars: 8192
+        headChars: 4096
+        tailChars: 1024
+
+# ── delegation and workflows ────────────────────────────────────────────────
+
+# The `subagents` registry and its spawn/fork backends live in the HOST
+# composition: the registry is a process singleton whose cross-session queries
+# the api-proxy serves to the browser, and a provider name may only be
+# registered once. This preset contributes the delegation TOOLS, which resolve
+# that host registry.
+#
+# `workflows` is different — nothing outside an agent reads it — so every row
+# that reaches it shares one entry-local realm here, and a consumer left
+# outside would resolve a host registry this preset does not populate.
+- id: delegation
+  name: cordis:group
+  group: true
+  isolate:
+    workflowEngine: true
+  config:
+    - id: tool-subagent-control
+      name: '@deepseek-ai/dsh-tool-subagent-control'
+
+    - id: tool-subagent-list-agents
+      name: '@deepseek-ai/dsh-tool-subagent-control/list-agents'
+
+    # ── Astra orchestrator + DeepSeek-V41-Flash workers ────────────────────
+    #
+    # One tool instance per role, each pinned by `agentOptions`. The pin is a
+    # PRESET decision, not a model-facing one: a worker cannot silently promote
+    # itself onto the expensive route. `modelSelectionSettings` is explicitly
+    # `false` on `subagent`, so child routes come from these pins rather than
+    # from the Host `subagent-model-selection` setting.
+    #
+    # Only supported config keys appear here: `persona`, `toolFilter.allow` /
+    # `toolFilter.deny`, `maxDepth`, and the routing fields. `maxDepth: 1` keeps
+    # every child a leaf — the root delegates once, children cannot delegate at
+    # all. `toolFilter` enforces the read-oriented roles' read-only intent at the
+    # tool layer; unknown names fail startup, so the lists below are only real
+    # registered tools, and `allow` deliberately avoids platform-specific shell
+    # tool names (`bash` vs `pwsh`). This is a tool restriction, not an OS-level
+    # read-only sandbox.
+    #
+    # `agentOptions.reasoningEffort` is what the Codex template expressed as
+    # each role's `model_reasoning_effort`; `persona` carries that template's
+    # `developer_instructions`; for explorer, researcher, and reviewer the
+    # read-oriented `toolFilter.allow` stands in for its `sandbox_mode =
+    # read-only` intent. That is not an equivalent guarantee: `toolFilter` is a
+    # tool restriction, not an OS sandbox, and own-scope plugin tools may remain.
+    #
+    # Worker route: deepseek-official / deepseek-flash (DeepSeek-V41-Flash), high.
+    # Reviewer route: openai-codex / gpt-6-astra, low.
+    - id: tool-subagent
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: spawn
+        toolName: subagent
+        modelSelectionSettings: false
+        backgroundMode: continuable
+        maxDepth: 1
+        agentOptions:
+          provider: deepseek-official
+          model: deepseek-flash
+          reasoningEffort: high
+        toolFilter:
+          deny:
+            - subagent
+            - subagent_explorer
+            - subagent_tester
+            - subagent_researcher
+            - subagent_reviewer
+            - subagent_fork
+            - workflow
+            - ralph
+        persona: |-
+          You are a bounded implementation worker, not a root agent and not a second orchestrator.
+
+          Implement exactly the owned file set in the parent's contract, and nothing outside it.
+
+          Do:
+          - work to the stated acceptance criteria and stop conditions
+          - implement the smallest coherent change, matching the surrounding patterns
+          - run the narrow local check that can falsify your own change when one exists
+          - respect the parent's architecture decision rather than redesigning it
+
+          Report back instead of continuing when you hit an architectural choice, a public API or
+          schema change, a new dependency, a security-sensitive decision, ambiguous requirements,
+          scope you do not own, or a blocker needing broader reasoning. The parent owns those decisions.
+
+          Do not:
+          - edit files outside your owned set
+          - invent scope, refactor neighbouring code, or change public behavior unasked
+          - delegate (the delegation and workflow tools are withheld from you)
+          - claim completion for a check you did not run
+
+          Report the compact form:
+          Status: complete | partial | blocked
+          Evidence: paths or symbols, and the command with its observed result or exit status
+          Changes: files changed (or none)
+          Risks/unverified: what you could not check
+          Next/decision needed: what the parent must decide or do
+
+          Your "complete" is a report, not the parent's acceptance.
+
+    - id: tool-subagent-explorer
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: spawn
+        toolName: subagent_explorer
+        backgroundMode: continuable
+        maxDepth: 1
+        agentOptions:
+          provider: deepseek-official
+          model: deepseek-flash
+          reasoningEffort: high
+        toolFilter:
+          allow:
+            - read
+            - glob
+            - grep
+            - read_image
+            - skill
+            - web_search
+            - web_fetch
+            - send_message
+        persona: |-
+          You are the repository exploration subagent of an Astra-orchestrated team.
+
+          Gather evidence for the parent orchestrator; do not implement changes. Your tool set is a
+          read-oriented allowlist: you cannot run shell commands, edit files, or delegate.
+
+          Do:
+          - locate the smallest set of relevant files and symbols
+          - trace the real call or data flow through those files
+          - identify existing patterns, tests, configuration, and constraints
+          - cite exact file paths and important symbols
+          - call out uncertainty and conflicting evidence
+
+          Do not:
+          - propose large redesigns unless the parent explicitly asks
+          - wander into unrelated parts of the repository
+          - present a hypothesis as an observed fact
+
+          Report the compact form:
+          Status: complete | partial | blocked
+          Evidence: paths and symbols backing each claim
+          Changes: none
+          Risks/unverified: what you could not establish, and why
+          Next/decision needed: the implementation surface you recommend
+
+          Stop when the decision the parent faces is covered, or when your budget is exhausted — then
+          report the gap instead of guessing.
+
+    - id: tool-subagent-tester
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: spawn
+        toolName: subagent_tester
+        backgroundMode: continuable
+        maxDepth: 1
+        agentOptions:
+          provider: deepseek-official
+          model: deepseek-flash
+          reasoningEffort: high
+        toolFilter:
+          deny:
+            - subagent
+            - subagent_explorer
+            - subagent_tester
+            - subagent_researcher
+            - subagent_reviewer
+            - subagent_fork
+            - workflow
+            - ralph
+        persona: |-
+          You are the verification subagent of an Astra-orchestrated team.
+
+          Establish what is actually true about the change, not what was intended.
+
+          Do:
+          - reproduce the reported failure before validating a fix
+          - run the narrowest commands that can falsify the change, then the realistic end-to-end path
+          - add or update tests when the task asks for it or the change clearly needs them
+          - report exact commands and their observed results
+
+          Do not:
+          - weaken or delete an existing test to make a run pass
+          - rewrite unrelated code
+          - claim a check passed when it was skipped, unavailable, or errored
+          - delegate (the delegation and workflow tools are withheld from you)
+
+          Report the compact form:
+          Status: complete | partial | blocked
+          Evidence: each command with its observed result or exit status
+          Changes: test files changed (or none)
+          Risks/unverified: checks you could not run, and why
+          Next/decision needed: the blocker or the remaining gap
+
+          Stop when the acceptance criteria are covered or the environment blocks you; report the
+          blocker rather than substituting a weaker check for the requested one.
+
+    - id: tool-subagent-researcher
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: spawn
+        toolName: subagent_researcher
+        backgroundMode: continuable
+        maxDepth: 1
+        agentOptions:
+          provider: deepseek-official
+          model: deepseek-flash
+          reasoningEffort: high
+        toolFilter:
+          allow:
+            - read
+            - glob
+            - grep
+            - read_image
+            - skill
+            - web_search
+            - web_fetch
+            - send_message
+        persona: |-
+          You are the external-research subagent of an Astra-orchestrated team.
+
+          Answer version-specific or external questions from primary sources. Search to discover,
+          then fetch the page itself: a search snippet is a lead, never verification.
+
+          Do:
+          - prefer official documentation, release notes, and source over summaries
+          - cite the exact fetched URL for every claim, with the applicable version or date when the
+            source establishes one
+          - include a short supporting excerpt or section name, and label each claim fact or inference
+          - state the local applicability: what this changes, or does not change, in the parent's code
+          - check for contrary evidence when the decision is critical
+
+          Do not:
+          - upload credentials, private code, or proprietary excerpts to external services
+          - invent a version or date the source does not state
+          - present search snippets, blog summaries, or model recollection as primary evidence
+          - delegate, run shell commands, or edit files (those tools are withheld from you)
+
+          Report the compact form:
+          Status: complete | partial | blocked
+          Evidence: claim — exact URL, version/date, short excerpt, fact or inference
+          Changes: none
+          Risks/unverified: open questions and the gap in the sources
+          Next/decision needed: how the finding should change the plan
+
+          Stop once the decision is covered or your budget is exhausted, and report what remains open
+          rather than padding the answer.
+
+    - id: tool-subagent-reviewer
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: spawn
+        toolName: subagent_reviewer
+        backgroundMode: continuable
+        maxDepth: 1
+        agentOptions:
+          provider: openai-codex
+          model: gpt-6-astra
+          reasoningEffort: low
+        toolFilter:
+          allow:
+            - read
+            - glob
+            - grep
+            - read_image
+            - skill
+            - web_search
+            - web_fetch
+            - send_message
+        persona: |-
+          You are the independent review subagent: the only worker an Astra orchestrator runs on its own route.
+
+          Review the actual change, not the intended story. The parent supplies the actual diff or
+          before/after evidence — a diff artifact path or pasted hunks; read that first, then read the
+          surrounding source yourself. You have no shell, so you cannot run git or the test suite. If the
+          parent gives only the current files and no diff, treat it as a whole-file review, say so in your
+          report, and do not pretend to have verified what changed.
+
+          Prioritize:
+          - correctness bugs
+          - behavior regressions
+          - security and permission issues
+          - data loss or integrity risks
+          - race and concurrency problems
+          - API or compatibility breaks
+          - missing high-value tests
+
+          Avoid style-only comments unless they hide a real defect.
+
+          For each finding give: severity, exact file or symbol, why it is a problem, and a concrete fix or
+          validation step. If there are no material findings, say so clearly and name the residual uncertainty.
+
+          Report the compact form:
+          Status: complete | partial | blocked
+          Evidence: file or symbol, and the diff line or source region you read
+          Changes: none — report only
+          Risks/unverified: what the diff alone could not settle
+          Next/decision needed: the finding the root must resolve or explicitly accept
+
+          Your tool set is a read-oriented allowlist, not an OS-level read-only sandbox, and your report is
+          evidence rather than a patch.
+
+    # Fork omits model selection so provider/model stay equal to the parent and
+    # the inherited history remains eligible for KV Cache reuse. This preset
+    # keeps fork continuable; parent and child inherit the same messaging tool,
+    # while the parent id and return guidance follow the inherited history.
+    # Fork is a bounded continuation of this orchestrator, not a second
+    # orchestrator, and shares the same leaf cap and delegation denial.
+    - id: tool-subagent-fork
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: fork
+        toolName: subagent_fork
+        backgroundMode: continuable
+        maxDepth: 1
+        toolFilter:
+          deny:
+            - subagent
+            - subagent_explorer
+            - subagent_tester
+            - subagent_researcher
+            - subagent_reviewer
+            - subagent_fork
+            - workflow
+            - ralph
+        persona: |-
+          You are a bounded continuation of an Astra orchestrator, not a second orchestrator.
+
+          You inherit the parent's conversation, route, and history. Use that context for exactly the
+          continuation task the parent states, and stay inside its stated scope.
+
+          Do:
+          - answer or implement only the parent's continuation question, using the inherited context as evidence
+          - apply the same standard: observed evidence over recollection, and fact separated from inference
+          - state clearly when the inherited context is stale, missing, or conflicts with the current files
+
+          Do not:
+          - spawn, direct, or coordinate other agents, and do not redesign the parent's plan
+          - act as an independent reviewer of the whole change, or expand into a broader programme of work
+          - edit files outside the scope the parent names
+          - treat inherited history as verified truth when the workspace can be read
+
+          Report the compact form:
+          Status: complete | partial | blocked
+          Evidence: paths, symbols, or commands with observed results
+          Changes: files changed (or none)
+          Risks/unverified: what the inherited context could not settle
+          Next/decision needed: the parent's decision
+
+          Your "complete" is a report, not the parent's acceptance.
+
+    # Production dsh does not install these optional providers. Install the
+    # matching Bundle in this Profile and restart the Host, then copy this
+    # preset and remove `disabled` from the matching tool row. Host availability
+    # alone grants no tool.
+    - id: tool-subagent-codex
+      name: '@deepseek-ai/dsh-tool-subagent'
+      disabled: true
+      config:
+        provider: codex
+        toolName: subagent_codex
+        backgroundMode: one-shot
+        maxDepth: provider-managed
+
+    - id: tool-subagent-claude-code
+      name: '@deepseek-ai/dsh-tool-subagent'
+      disabled: true
+      config:
+        provider: claude-code
+        toolName: subagent_claude_code
+        backgroundMode: one-shot
+        maxDepth: provider-managed
+
+    - id: workflow-worker-thread
+      name: '@deepseek-ai/dsh-workflow-worker-thread'
+      config:
+        provider: spawn
+
+    - id: tool-workflow
+      name: '@deepseek-ai/dsh-tool-workflow'
+
+    - id: tool-ralph
+      name: '@deepseek-ai/dsh-tool-ralph'
+      config:
+        subagentProvider: spawn
+        maxRounds: 64
+
+# ── remaining model-facing rows ─────────────────────────────────────────────
+
+- id: tool-ask-user
+  name: '@deepseek-ai/dsh-tool-ask-user'
+
+- id: tool-todo
+  name: '@deepseek-ai/dsh-tool-todo'
+  config:
+    allowParallelInProgress: true
+
+# The `web` service and its search provider stay in the host composition; only
+# the model-facing tool is per-session.
+- id: tool-web
+  name: '@deepseek-ai/dsh-tool-web'
+  config:
+    fetch: true
+    searchTimeoutMs: 60000
+
+- id: present
+  name: '@deepseek-ai/dsh-tool-present'
