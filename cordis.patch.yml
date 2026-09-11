@@ -56,6 +56,24 @@
       openai-codex: {}
       openrouter:
         apiKeyEnv: OPENROUTER_API_KEY
+      # The OpenCode Go managed-inference route. pi-ai ships its catalog
+      # (glm-5.3-flash and friends on openai-completions); user settings must
+      # declare the credential as `apiKeyEnv: OPENCODE_GO_API_KEY` (a harness
+      # credential reference it resolves per request) — pi-ai's own ambient
+      # discovery for this provider reads only OPENCODE_API_KEY, so exporting
+      # OPENCODE_GO_API_KEY alone without the settings row authenticates
+      # nothing. Settings may also add models. From 09/05 OpenCode Go requires
+      # a stable per-conversation id on every inference request
+      # (deepseek-harness discussion #5495) and drops the request with a
+      # MissingSessionID error otherwise. `sessionHeader` is llm-pi-ai's
+      # per-profile session-affinity header: the adapter sends
+      # x-opencode-session with the current session id on every request and
+      # omits it when a request carries none. A static `headers` entry cannot
+      # do this — its value is shared by every session. On a harness whose
+      # llm-pi-ai predates `sessionHeader` the unknown field is ignored, so
+      # this row is forward-compatible, not a load failure.
+      opencode-go:
+        sessionHeader: "x-opencode-session"
 
 # The GLM route needs no capability override: the installed pi-ai catalog
 # declares `z-ai/glm-5.3-flash` on openrouter with reasoning efforts

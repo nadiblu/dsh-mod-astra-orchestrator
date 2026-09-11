@@ -454,5 +454,19 @@ try {
   rmSync(home, { recursive: true, force: true })
 }
 
+// ─── 7. bundle patch carries the OpenCode Go session header ─────────────────
+
+process.stdout.write('bundle patch opencode-go sessionHeader\n')
+{
+  const patch = readFileSync(path.join(MOD_DIR, 'cordis.patch.yml'), 'utf8')
+  const lines = patch.split('\n')
+  const headerLine = lines.findIndex(line => line.trim() === 'sessionHeader: "x-opencode-session"')
+  const goLine = lines.findIndex(line => line.trim() === 'opencode-go:')
+  const routerLine = lines.findIndex(line => line.trim() === 'openrouter:')
+  check('patch declares the opencode-go route', goLine !== -1)
+  check('patch sends x-opencode-session exactly once', headerLine !== -1 && lines.slice(headerLine + 1).every(line => line.trim() !== 'sessionHeader: "x-opencode-session"'))
+  check('sessionHeader sits on the opencode-go row, not openrouter', headerLine !== -1 && goLine !== -1 && routerLine !== -1 && goLine < headerLine && routerLine < goLine)
+}
+
 process.stdout.write(failures === 0 ? '\nall checks passed\n' : `\n${failures} check(s) failed\n`)
 process.exit(failures === 0 ? 0 : 1)

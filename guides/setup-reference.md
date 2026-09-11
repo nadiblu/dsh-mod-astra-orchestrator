@@ -14,7 +14,7 @@ Targets native DSH `0.1.5-rc.1`. The stable preset/skill id is `astra-orchestrat
 | Activation receipt | `$DSH_HOME/.astra-orchestrator-backups/model-selection.json`; original model block and exact owned activation |
 | Bundle patch | Optional profile layer: preset root, OpenRouter/Codex routes, default provider/model, and authorization service |
 
-`DSH_HOME` defaults to `~/.dsh`. Copy installation requires an already configured OpenRouter route/model/credential and preserves it. Bundle mode also declares an OpenRouter route using `OPENROUTER_API_KEY`; user settings still layer over profile configuration.
+`DSH_HOME` defaults to `~/.dsh`. Copy installation requires an already configured OpenRouter route/model/credential and preserves it. Bundle mode also declares an OpenRouter route using `OPENROUTER_API_KEY` and an `opencode-go` route carrying `sessionHeader: "x-opencode-session"` — OpenCode Go drops inference requests without a stable per-conversation id (deepseek-harness discussion #5495). The header needs DSH with llm-pi-ai `sessionHeader` support; older harnesses ignore the unknown field. User settings still layer over profile configuration.
 
 ## Install
 
