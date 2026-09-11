@@ -32,7 +32,7 @@ The root must obtain the real consultation result before the dependent step. An 
 Requirements:
 
 - DSH `0.1.5-rc.1`, Node.js 20.10+, and this checkout.
-- A configured, working OpenRouter route exposing `z-ai/glm-5.3-flash`, with credentials and balance. Copy installation preserves that route; configure it in DSH first.
+- A configured, working OpenRouter route exposing `z-ai/glm-5.3-flash`, with credentials and balance. Copy installation preserves that route; configure it in DSH first. OpenCode Go routes additionally need `sessionHeader: "x-opencode-session"` on the profile — the bundle patch sets it (see [setup reference](guides/setup-reference.md)).
 - ChatGPT/Codex authentication with access to `gpt-6-astra` for consultations.
 
 ```bash
