@@ -1,0 +1,29 @@
+# Astra Orchestrator for Oh My Pi — optional manual settings overlay
+#
+# NOTHING HERE IS APPLIED BY install-omp.mjs. The installer only copies
+# omp/skills and omp/agents into <project>/.omp. Merge the keys you want into
+# your own config yourself, then confirm the result with `omp config list`.
+#
+# Where this goes (OMP reads config.yml-style files):
+#   user:    ~/.omp/agent/config.yml
+#   project: <project>/.omp/config.yml
+#
+# Two keys only, both verified. Both are optional: the bundle works without
+# them, and the agent files are the source of truth for the routes.
+
+# Ceiling on the coarse per-spawn effort hint. That hint only exists when
+# `task.enableEffort` is true (its default is false), and it takes only the
+# coarse values `lo`, `med`, `hi`. The Astra workflow omits `effort` entirely,
+# so every agent keeps the `thinking` value in its own file and this ceiling
+# never gets a chance to change an exact pin.
+#
+# GLM 5.3 Flash is exposed by the OpenRouter catalog at low / high / max. An
+# `xhigh` request is satisfied by `high`, which is why the agents pin `max`.
+task:
+  maxEffort: max
+
+# Enables the interactive `/skill:astra-orchestrator <task>` entry point.
+# Without it the skill is still discovered and can be read or invoked as
+# `skill://astra-orchestrator`; only the slash command is missing.
+skills:
+  enableSkillCommands: true

@@ -1,167 +1,153 @@
 # Orchestration playbook
 
-Short, copy-paste decision rules for the Astra Orchestrator preset. The skill
-carries the full doctrine; this file is the pocket card.
+The native `astra-orchestrator` preset is **GLM Lead · Astra Checkpoints**. GLM implements, integrates, verifies, and answers. Astra supplies bounded advice and independent review rather than running every turn.
 
 ## Which topology for which task
 
-| Task shape | Topology |
+| Task | Required action |
 |---|---|
-| One-file edit, clear acceptance | root only |
-| Question about code you can read in one pass | root only |
-| Bug traced across 2+ modules | one `subagent_explorer` per suspected area in parallel → root decides → one `subagent` → `subagent_tester` |
-| Multi-file feature with separable slices | explorers in parallel → one `subagent` per owned file set → tester → reviewer |
-| Version/API/dependency uncertainty | `subagent_researcher` alongside the explorers |
-| Risky change (auth, data, concurrency, public API) | full chain, and `subagent_reviewer` is mandatory |
-| "Get a second opinion with our context" | `subagent_fork` (inherits route + history; not a cost saving) |
+| Routine low-risk edit or direct question | GLM inline; no consultation quota |
+| Consequential state, persistence, concurrency, or control-routing design | Complete `subagent_architect` before committing to the design |
+| Substantial completed change | Verify, then complete `subagent_reviewer` on the final actual diff before completion/deployment |
+| Defect survives one meaningful changed-hypothesis retry | Complete `subagent_debug_consult` with the failed hypothesis and evidence |
+| Independent execution slices | Optionally use bounded GLM workers with disjoint file ownership |
+| Explicit request for consultation | Use the requested appropriate Astra role |
 
-One bounded worker is often the whole team. Plan for at most three concurrently
-active children, reviewer included — soft planning budget, not a hard cap. Role
-count is not a success metric, and tightly coupled writers stay with one owner.
-Every child is a leaf: `maxDepth: 1` on the six role tools, so children cannot
-delegate further. The root's own `workflow` and `ralph` tools are separate and
-only used when the user explicitly asks.
+Architecture advice never substitutes for final-diff review. A role being available is not evidence that it ran. Each checkpoint requires an actual result and disposition of material findings; an unavailable required consultation blocks its dependent step.
 
-Enforced by the harness: route pins, `maxDepth`, `toolFilter`. Instructed policy:
-file ownership, the three-child budget, the report template, and the completion
-gate. These are design hypotheses to evaluate, not runtime checks or measured gains.
+Four execution roles are pinned to OpenRouter GLM/max; three consultation roles to Codex Astra/high. Fork inherits the root. Keep tightly coupled edits with one writer and normally use no more than three concurrent children. The root's selected model remains host/session-controlled.
 
-Restricted roles (explorer, researcher, reviewer) have no standard shell or edit
-tools (own-scope plugin tools may remain). Give the reviewer the actual diff or
-before/after evidence — a diff artifact path or pasted hunks — or, when no diff is
-possible, a named whole-file review it must report as such. Produce the runtime
-evidence yourself; the filter is a tool restriction, not an OS sandbox.
-
-## Contract template
+## Delegation contract
 
 ```text
-Objective: <one outcome>
-Scope: <files / module / symbol / question>
-Context: <only what is needed>
-Constraints: <what must not change>
-Deliverable: <what to return or implement>
-Acceptance: <how success is checked>
-Stop/Budget: <when to return early; the budget for this task>
+Objective: one concrete outcome
+Scope: exact files, symbols, or question
+Context: relevant evidence, not the full transcript
+Constraints: what must not change
+Deliverable: recommendation, patch, or observed result
+Acceptance: how the outcome will be checked
+Stop: conditions requiring the root's decision
 ```
 
-Explorers, researchers, and the reviewer must not modify files; their standard
-shell/write/edit tools are withheld. Their deliverable is evidence with paths and
-symbols. Workers own files; never assign two workers the same file.
+Explorers, researchers, architects, reviewers, and debug consultants are read-oriented roles. Give consultants the request header below with paths and the actual question; give final reviewers the real diff plus verification results. They cannot produce shell-based runtime evidence themselves through their standard tool surface.
+
+## Consultation request header
+
+Open every consult prompt with the same six fields; write
+`not available: <reason>` rather than leaving a field blank. Follow-ups
+reference finding ids, the evidence revision, what changed, and the narrowed
+question instead of repeating the header.
+
+```text
+QUESTION: the decision or acceptance check this consultation gates
+CONTEXT: workspace, scope, relevant background, non-goals
+EVIDENCE: evidence revision (R1, R2, …), baseline, the actual change or reproduction, verification
+CONSTRAINTS: invariants, tool limits, what must not change
+READ FIRST: exact paths and symbols, in reading order
+ANSWER WITH: numbered findings with the severity legend, then the compact report
+```
+
+Role minimums: architect — the decision, alternatives rejected and why (or
+"none yet"), the invariants; reviewer — the complete final change against its
+declared baseline, acceptance criteria, and the root's own verification
+results; debug consult — exact reproduction, expected vs observed, the
+initial and changed hypotheses with the evidence that falsified each, and what
+remains unexplained.
+
+The evidence handoff declares baseline and scope, captures the complete tracked
+change — `git diff HEAD -- <paths>` when HEAD is the baseline (a bare `git
+diff` misses staged work), `git diff <baseline> -- <paths>` for an older
+commit, and before/after snapshots of the scoped files when the before-state
+is dirty or the tree is not a git repo —
+supplies untracked or new files separately, states exclusions, and records each
+verification command with cwd, observed result, exit status, and the revision
+it exercised. Default to an artifact directory per consult and revision (this
+repository: `test-results/astra-consults/<session>/<consult>/R1/`); paste
+inline only when the complete handoff is small, and never truncate. Artifacts
+are local, uncommitted, redacted, root-written, and never added to `.gitignore`
+automatically. Queue the consult after writers on the reviewed surface settle,
+and keep that surface frozen until the result arrives.
+
+## Findings ledger
+
+Every consult numbers its material findings F1, F2, … before the compact
+report, keeps ids stable across follow-ups, and appends new findings without
+renumbering. The root records them as `<consult-alias>/F<n>`
+(`architect-2/F1`). Severity legend (impact, not certainty; hypotheses stay
+hypothetical):
+
+- `blocker` — the dependent step is unsafe or impossible, or an acceptance criterion cannot hold
+- `major` — a significant correctness, security, or reliability risk
+- `minor` — a bounded real defect or a concrete validation gap
+- `note` — an optional observation, not owed a disposition
+
+The root closes the ledger with an explicit disposition per material finding:
+
+```text
+architect-2/F1 — fixed at src/state.ts:loadSnapshot; validation: state round-trip test passes
+reviewer-3/F2 — accepted: retained risk is the documented fallback path, covered by the manual step
+reviewer-3/F3 — rejected: counter-evidence — the caller already guards against null
+```
+
+`fixed` carries location plus validation; `accepted` names the consciously
+retained risk and why; `rejected` cites counter-evidence or inapplicability. A
+disposition cannot waive unmet acceptance criteria or safety rules.
+
+A consult that cannot judge from its inputs returns `Status: blocked` naming
+exactly what is missing; the checkpoint stays open until the root supplies
+them and follows up with the same child — that is not a transport failure.
+Follow-ups go to the same continuable child, and delivery is not completion:
+wait for the actual result. A review covers the evidence revision as handed;
+material post-review edits require re-verification and a delta review (same
+reviewer, next revision, refreshed reads) before completion, and the final
+change is compared against the reviewed revision before the ledger closes.
 
 ## Child report template
 
 ```text
 Status: complete | partial | blocked
-Evidence: paths/symbols, or commands with observed result and exit status
-Changes: files changed, or none
-Risks/unverified: what could not be checked
+Evidence: paths/symbols or commands with observed results
+Changes: changed files, or none
+Risks/unverified: remaining evidence gaps
 Next/decision needed: what the root must decide or do
 ```
 
-A child's "complete" is a report, not the root's acceptance.
+The root verifies a child's report. Confidence and a `complete` label are not acceptance evidence.
 
-## Architecture gate (nontrivial changes)
+## Architecture and debugging
 
-Before editing: name the acceptance criteria and non-goals; trace the real data
-or control path and its invariants; list missing evidence and risks; compare the
-minimal coherent fix with leaving the design intact. Record the decision, why the
-rejected option lost, and the check that would falsify it. The root decides.
+Trace the causal path and relevant invariants first. Supply Astra with the consequential choice, alternatives, constraints, and evidence. The root records its decision and the check that could falsify it, then implements on GLM.
 
-## Parallel vs serial
+For repeated failures, name the reproduction and the changed hypothesis already falsified. Ask the debug consultant for the competing cause and a discriminating observation, not an expensive implementation takeover. GLM applies and verifies the resulting fix.
 
-Parallel when the tasks do not read each other's results: independent explorers,
-independent file-owned workers, a researcher before you decide.
+## Background children and boundaries
 
-Serial when a decision is needed between steps:
+Native subagent calls return child IDs; settlement or a foreground result proves completion. `send_message` is not a completion receipt. `ready` or `idle` alone does not prove the assigned work finished. Background job IDs are separate from child IDs.
 
-```text
-explore → decide → implement → test → review → fix → final verify
-```
+All eight role tools enforce `maxDepth: 1`. Child route selection and tool filters are native controls; own-scope tool exemptions mean filters are not OS sandboxes. Root `workflow`/`ralph` paths are separate and reserved for explicit user requests.
 
-## Cost rules
-
-- Anything routine runs on the flash workers; only planning, integration,
-  synthesis, and review run on `gpt-6-astra`.
-- Do not paste raw logs or whole files into the root. Ask children for
-  conclusions, paths, commands, observed results, risks.
-- The reviewer is the one role that is *supposed* to be expensive; give it the
-  actual diff or before/after evidence and the acceptance criteria, not a summary
-  of intent. Current files alone are not a review of the change.
-- Escalation is the root's decision and must be stated. A flash worker never
-  promotes itself, and no child tool exposes route selection.
-
-## Background children
-
-A call returns a durable **child id**, not a job id. The settlement notice or a
-foreground return carries the result. `send_message` starts or steers a child; it
-is not a completion receipt. `list_agents` status `ready` or `idle` means the
-child exists, not that its work is done. `job_output` takes job ids from real
-background jobs only. Never finish a turn while required work is running.
-
-## Failure handling
-
-1. Read the failure reason.
-2. Retry once with a changed hypothesis or better context, then narrow, reassign,
-   or do it yourself in the root — a hard architectural problem may be resolved
-   in the root after the bounded failure is recorded.
-3. Say which fallback happened in the final answer.
-
-Never claim a child succeeded when it failed or never ran. A verified fallback
-may still complete the objective; report which path succeeded. Never claim cost
-or improvement benefits that were not measured.
+Checkpoint timing, file ownership, and the completion policy are instructions, not mechanically enforced deployment gates.
 
 ## Completion gate
 
-- the original task's acceptance criteria are met
-- no required child still running; every required child completed or failed with
-  its scope accounted for
-- reviewer findings either resolved or explicitly accepted with a reason
-- the highest-value, outcome-focused checks were run, or the missing validation
-  is named
-- the final actual diff was inspected by the root
+- Original acceptance criteria and realistic verification are satisfied.
+- Triggered consultations actually completed; no required child remains running.
+- The final actual diff was reviewed after verification for a substantial change, at its final evidence revision.
+- The findings ledger is closed: every material finding recorded as fixed with validation, accepted with the retained-risk reason, or rejected with counter-evidence.
+- The root checked the integrated result and reports unverified behavior honestly.
+- No unmeasured cost, speed, or quality improvement is claimed.
 
 ## Manual A/B rollout checks
 
-Run `npm test` first; those offline checks need no activation. The behavioral A/B
-checks below are a separate, explicitly authorized rollout, not part of that suite.
-For each revision, install with plain `node install.mjs --yes` (preset and skill
-update; default model preserved), restart the host when idle, and start a fresh
-session. Avoid `--activate`: it overwrites the root's effort setting. Confirm the
-effective route and child tool catalog rather than assuming a reload. Keep inputs,
-model routes, budgets, and workspace starting state the same across revisions;
-record revision identifiers and reserve held-out tasks. Full flag notes live in
-the [setup reference](setup-reference.md). The current activation defaults are
-Astra at xhigh for the lead and Astra at high for the reviewer; workers remain
-DeepSeek at high. Record any overrides in your results. Keep the
-[calculated cost and scheduling scenarios](cost-and-performance.md) separate
-from measurements collected here.
+Run `npm test` first. Then use isolated **native web-preset** sessions, identical starting files and task prompts, and recorded model selections. Headless execution bypasses presets and is not comparable acceptance.
 
-Run these checks by hand on the candidate and on the previous revision, then
-compare. Record each observed outcome, including failures — do not report an
-improvement that was not measured.
+| Scenario | Observable result |
+|---|---|
+| Routine request | GLM answers without Astra |
+| Consequential persistence change, without naming agents | Completed Astra/high architecture consultation before writes; GLM implementation |
+| Substantial final change | Completed Astra/high final-diff review after meaningful execution proof |
+| Repeated unresolved defect | Debug consultation after the changed-hypothesis retry fails |
+| Failed required consultation | Dependent completion/deployment does not proceed silently |
+| Long or resumed conversation | Required checkpoints still occur; fresh-session success alone is insufficient |
 
-| Check | Scenario | What to look for |
-|---|---|---|
-| Trivial task | one-file edit with clear acceptance | root does it directly; no children spawned |
-| Coupled bug | failure spanning 2+ modules | one explorer per area, one writer, tester reproduces the original failure |
-| Conflicting source | docs disagree with observed code | researcher cites the fetched primary URL and version; root resolves, not the child |
-| False completion | child returns `complete` with weak evidence | root re-checks the diff and rejects or repairs before presenting |
-| Leaf containment | child tries to delegate | child's delegation tools are denied and the depth cap rejects any attempt |
-
-Metrics, only when actually measured: outcome correctness, unsupported
-completion claims, wall-clock time, and tokens. A single unfavourable run is
-evidence, not a verdict; keep the raw evidence path per run.
-
-## References
-
-Two sources shaped this design; neither measures this preset:
-
-- [How we built our multi-agent research system](https://www.anthropic.com/engineering/multi-agent-research-system)
-  — supporting evidence for explicit role boundaries, task-dependent fan-out that
-  varies with the work, and the need for a small real evaluation set.
-- [Writing effective tools for agents](https://www.anthropic.com/engineering/writing-tools-for-agents)
-  — supporting evidence for unambiguous tool contracts and for measuring end
-  states rather than intermediate activity.
-
-They support the design reasoning here. They are not evidence that this preset
-improves Astra outcomes; only a local evaluation can support such a claim.
+Use native journal `request/header`, `tool/call`, and `subagent/catalog` events to establish actual routes, calls, and outcomes. Compare correctness, unsupported completion claims, time, tokens, and real provider usage—not agent counts or an assumed delegation percentage. [Cost measurement](cost-and-performance.md).

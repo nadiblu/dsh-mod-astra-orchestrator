@@ -15,7 +15,8 @@
  *                   `dsh plugin --profile <p> add <this dir>`, which reconciles
  *                   `dsh.profile.bundles` from the manifest. The bundle patch
  *                   adds the preset root and registers the `openai-codex`
- *                   (ChatGPT subscription) route. A CLI restart is required.
+ *                   (ChatGPT subscription) and `openrouter` routes. A CLI
+ *                   restart is required.
  *
  * Both modes merge `$DSH_HOME/settings.yaml` surgically: comments and unrelated
  * namespaces are preserved line by line, a timestamped backup is written before
@@ -30,7 +31,7 @@
  *   --bundle           use bundle mode instead of copying the preset
  *   --copy             force copy mode (default)
  *   --activate         also point `agent-default-model` at
- *                      openai-codex/gpt-6-astra at xhigh (run AFTER signing in)
+ *                      openrouter/z-ai/glm-5.3-flash at max
  *   --login            run the ChatGPT (Codex OAuth) sign-in after installing
  *   --method <name>    login method for --login: device (default) or browser
  *   --logout           delete the stored ChatGPT grant and exit
@@ -59,7 +60,7 @@ const PKG_NAME = 'dsh-mod-astra-orchestrator'
 const PRESET_ID = 'astra-orchestrator'
 const SKILL_ID = 'astra-orchestrator'
 const ENV_KEY = 'ASTRA_ORCHESTRATOR_PRESETS'
-const ORCHESTRATOR = { provider: 'openai-codex', model: 'gpt-6-astra', reasoningEffort: 'xhigh' }
+const ORCHESTRATOR = { provider: 'openrouter', model: 'z-ai/glm-5.3-flash', reasoningEffort: 'max' }
 const ACTIVATED_VALUE = PRESET_ID
 
 // ─── cli ────────────────────────────────────────────────────────────────────
@@ -407,15 +408,24 @@ function plan(paths, opts) {
     if (existsSync(paths.skillDest)) actions.push({ kind: 'rm', target: paths.skillDest })
     const previous = readSidecar(sidecarPath(paths.dshHome))
     const current = readModelSelection(before)
-    const ours = current !== undefined && current.provider === ORCHESTRATOR.provider && current.model === ORCHESTRATOR.model
+    // Only a recorded activation still matching the exact selection is ours.
+    // Matching a user's independently selected GLM route proves no ownership.
+    // Older receipts predate the cost-first cutover and recorded Astra/xhigh.
+    const selection = previous?.activatedSelection
+      ?? { provider: 'openai-codex', model: 'gpt-6-astra', reasoningEffort: 'xhigh' }
+    const activated = previous !== undefined
+      && current?.provider === selection.provider
+      && current?.model === selection.model
+      && current?.reasoningEffort === selection.reasoningEffort
+    const captured = previous?.block
     disableRoute(lines)
     clearPresetDefault(lines)
-    deactivateDefaultModel(lines)
-    const captured = previous?.block
-    if (captured !== undefined && Array.isArray(captured.lines) && ours) {
+    if (activated && Array.isArray(captured?.lines)) {
       restoreModelBlock(lines, captured)
       const restored = readModelSelection(renderSettings(lines))
       actions.push({ kind: 'restore', target: `agent-default-model → ${restored?.provider ?? '(none)'}/${restored?.model ?? '(none)'}` })
+    } else if (activated && captured === null) {
+      deactivateDefaultModel(lines)
     }
   } else if (opts.bundle === true) {
     actions.push({ kind: 'pnpm-add', target: `${PKG_NAME} → profiles/${opts.profile}` })
@@ -594,13 +604,21 @@ async function install(opts, paths) {
     log('settings: already up to date')
   }
 
-  // Remember the pre-activation model selection so --uninstall can put it back.
-  // Captured only once, and only when there was a selection to restore.
-  if (steps.snapshot !== undefined && !existsSync(sidecarPath(paths.dshHome))) {
+  // Capture the original selection once; record each explicit activation's
+  // exact route so later upgrades and user changes retain clear ownership.
+  if (opts.activate) {
     const file = sidecarPath(paths.dshHome)
-    mkdirSync(path.dirname(file), { recursive: true })
-    writeFileSync(file, `${JSON.stringify({ block: steps.snapshot, capturedAt: new Date().toISOString() }, null, 2)}\n`)
-    log(`restore:  ${file}`)
+    const previous = readSidecar(file)
+    const record = {
+      ...(previous ?? { block: steps.snapshot ?? null, capturedAt: new Date().toISOString() }),
+      activatedSelection: ORCHESTRATOR,
+    }
+    const contents = `${JSON.stringify(record, null, 2)}\n`
+    if (!existsSync(file) || readFileSync(file, 'utf8') !== contents) {
+      mkdirSync(path.dirname(file), { recursive: true })
+      writeAtomic(file, contents)
+      log(`restore:  ${file}`)
+    }
   }
 
   // 2. preset + skill
@@ -673,14 +691,21 @@ function resolveInstalledPreset(profileDir) {
 function warnIfNotSignedIn(dshHome, opts) {
   const credentials = path.join(dshHome, '.credentials.yaml')
   const signedIn = existsSync(credentials) && readFileSync(credentials, 'utf8').includes('llm-pi-ai/openai-codex')
-  if (signedIn) { log('auth:     ChatGPT subscription sign-in present'); return }
-  log('')
-  log('auth:     no `llm-pi-ai/openai-codex` credential found yet.')
-  log('          Sign in before activating, or the orchestrator route fails every request.')
-  log('          This build ships no sign-in UI, so run the bundled flow:')
-  log(`            node ${path.relative(process.cwd(), path.join(MOD_DIR, 'scripts', 'login-openai-codex.mjs'))} --method device`)
-  log('          or rerun this installer with --login.')
-  if (opts.activate) log('          (--activate was requested; reverting is `--uninstall`.)')
+  if (signedIn) {
+    log('auth:     ChatGPT subscription sign-in present (Astra consultations)')
+  } else {
+    log('')
+    log('auth:     no `llm-pi-ai/openai-codex` credential found yet.')
+    log('          Astra architecture/review/debug consultations need it, or those calls fail.')
+    log('          This build ships no sign-in UI, so run the bundled flow:')
+    log(`            node ${path.relative(process.cwd(), path.join(MOD_DIR, 'scripts', 'login-openai-codex.mjs'))} --method device`)
+    log('          or rerun this installer with --login.')
+    if (opts.activate) log('          (--activate was requested; reverting is `--uninstall`.)')
+  }
+  if (opts.activate && process.env.OPENROUTER_API_KEY === undefined) {
+    log('')
+    log('auth:     OPENROUTER_API_KEY is not exported here. GLM needs an OpenRouter credential stored in DSH or supplied by its configured environment.')
+  }
 }
 
 function verify(opts) {

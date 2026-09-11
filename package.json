@@ -2,7 +2,7 @@
   "name": "dsh-mod-astra-orchestrator",
   "version": "0.1.0",
   "private": true,
-  "description": "Astra Orchestrator for DeepSeek Harness: Astra lead at xhigh, DeepSeek-V4.1-Flash workers at high, independent Astra review at high.",
+  "description": "Astra Orchestrator for DeepSeek Harness: GLM 5.3 Flash root and execution workers at max reasoning effort, with independent Astra architecture, review, and debug consultations at high.",
   "type": "module",
   "license": "(MIT AND Apache-2.0)",
   "engines": {
@@ -13,7 +13,9 @@
   },
   "scripts": {
     "install-mod": "node install.mjs",
-    "test": "node scripts/test-settings-merge.mjs && node scripts/test-preset-composition.mjs"
+    "install-omp": "node install-omp.mjs",
+    "test": "node scripts/test-settings-merge.mjs && node scripts/test-preset-composition.mjs",
+    "test:omp": "node scripts/test-omp-bundle.mjs && node scripts/test-omp-mode.mjs"
   },
   "dsh": {
     "bundle": {
@@ -22,8 +24,10 @@
   },
   "files": [
     "install.mjs",
+    "install-omp.mjs",
     "cordis.patch.yml",
     "preset",
+    "omp",
     "skills",
     "guides",
     "assets",

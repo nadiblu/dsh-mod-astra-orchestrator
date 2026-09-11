@@ -1,3 +1,3 @@
-name: Astra Orchestrator
-description: Astra (gpt-6-astra) leads at xhigh, DeepSeek-V4.1-Flash workers execute at high, and a separate Astra reviewer checks at high.
+name: GLM Lead · Astra Checkpoints
+description: GLM 5.3 Flash leads and executes inline — root route follows the host/session model settings, execution workers pinned at max — with mandatory Astra (gpt-6-astra) checkpoints for architecture, final-diff review, and debugging consultations.
 order: 10

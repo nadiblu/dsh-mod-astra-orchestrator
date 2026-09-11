@@ -48,15 +48,17 @@ const SUBAGENT_PLUGIN = '@deepseek-ai/dsh-tool-subagent'
 
 /** Contract: every enabled delegation role, its route pin, and its filter. */
 const ALLOWED_READ_TOOLS = ['read', 'glob', 'grep', 'read_image', 'skill', 'web_search', 'web_fetch', 'send_message']
-const DENIED_DELEGATION_TOOLS = ['subagent', 'subagent_explorer', 'subagent_tester', 'subagent_researcher', 'subagent_reviewer', 'subagent_fork', 'workflow', 'ralph']
-const FLASH_HIGH = { provider: 'deepseek-official', model: 'deepseek-flash', reasoningEffort: 'high' }
-const REVIEWER_PIN = { provider: 'openai-codex', model: 'gpt-6-astra', reasoningEffort: 'high' }
+const DENIED_DELEGATION_TOOLS = ['subagent', 'subagent_explorer', 'subagent_tester', 'subagent_researcher', 'subagent_architect', 'subagent_reviewer', 'subagent_debug_consult', 'subagent_fork', 'workflow', 'ralph']
+const GLM_MAX = { provider: 'openrouter', model: 'z-ai/glm-5.3-flash', reasoningEffort: 'max' }
+const ASTRA_HIGH = { provider: 'openai-codex', model: 'gpt-6-astra', reasoningEffort: 'high' }
 const ROLES = [
-  { toolName: 'subagent', childProvider: 'spawn', pin: FLASH_HIGH, filter: { deny: DENIED_DELEGATION_TOOLS } },
-  { toolName: 'subagent_explorer', childProvider: 'spawn', pin: FLASH_HIGH, filter: { allow: ALLOWED_READ_TOOLS } },
-  { toolName: 'subagent_tester', childProvider: 'spawn', pin: FLASH_HIGH, filter: { deny: DENIED_DELEGATION_TOOLS } },
-  { toolName: 'subagent_researcher', childProvider: 'spawn', pin: FLASH_HIGH, filter: { allow: ALLOWED_READ_TOOLS } },
-  { toolName: 'subagent_reviewer', childProvider: 'spawn', pin: REVIEWER_PIN, filter: { allow: ALLOWED_READ_TOOLS } },
+  { toolName: 'subagent', childProvider: 'spawn', pin: GLM_MAX, filter: { deny: DENIED_DELEGATION_TOOLS } },
+  { toolName: 'subagent_explorer', childProvider: 'spawn', pin: GLM_MAX, filter: { allow: ALLOWED_READ_TOOLS } },
+  { toolName: 'subagent_tester', childProvider: 'spawn', pin: GLM_MAX, filter: { deny: DENIED_DELEGATION_TOOLS } },
+  { toolName: 'subagent_researcher', childProvider: 'spawn', pin: GLM_MAX, filter: { allow: ALLOWED_READ_TOOLS } },
+  { toolName: 'subagent_architect', childProvider: 'spawn', pin: ASTRA_HIGH, filter: { allow: ALLOWED_READ_TOOLS } },
+  { toolName: 'subagent_reviewer', childProvider: 'spawn', pin: ASTRA_HIGH, filter: { allow: ALLOWED_READ_TOOLS } },
+  { toolName: 'subagent_debug_consult', childProvider: 'spawn', pin: ASTRA_HIGH, filter: { allow: ALLOWED_READ_TOOLS } },
   { toolName: 'subagent_fork', childProvider: 'fork', pin: undefined, filter: { deny: DENIED_DELEGATION_TOOLS } },
 ]
 /** Standard capabilities a restricted role must not be able to reach. */
@@ -197,8 +199,8 @@ const enabled = row => row.disabled === undefined || row.disabled === false
 const subagentRows = parsedRows.filter(row => row.name === SUBAGENT_PLUGIN)
 const enabledSubagentRows = subagentRows.filter(enabled)
 const roleRow = toolName => enabledSubagentRows.find(row => row.config?.toolName === toolName)
-check('exactly six enabled delegation rows', enabledSubagentRows.length === 6, `found ${enabledSubagentRows.length}`)
-check('six distinct role tools', new Set(enabledSubagentRows.map(row => row.config?.toolName)).size === enabledSubagentRows.length)
+check('exactly eight enabled delegation rows', enabledSubagentRows.length === 8, `found ${enabledSubagentRows.length}`)
+check('eight distinct role tools', new Set(enabledSubagentRows.map(row => row.config?.toolName)).size === enabledSubagentRows.length)
 check('disabled provider rows stay disabled', subagentRows.filter(row => !enabled(row)).every(row => row.disabled === true))
 check('no enabled row names a disabled provider', parsedRows.filter(enabled).every(row => !['codex', 'claude-code'].includes(row.config?.provider ?? row.config?.subagentProvider)))
 check('no enabled row exposes a disabled provider tool', parsedRows.filter(enabled).every(row => !['subagent_codex', 'subagent_claude_code'].includes(row.config?.toolName)))
@@ -245,6 +247,7 @@ for (const role of ROLES) {
   }
 }
 check('personas are distinct across roles', new Set(personas.values()).size === personas.size, `${personas.size} personas, ${new Set(personas.values()).size} distinct`)
+check('generic row explicitly disables model selection', roleRow('subagent')?.config?.modelSelectionSettings === false, String(roleRow('subagent')?.config?.modelSelectionSettings))
 
 const allowedNames = new Set(ALLOWED_READ_TOOLS)
 check('allowed and denied sets are disjoint', DENIED_DELEGATION_TOOLS.every(name => !allowedNames.has(name)))

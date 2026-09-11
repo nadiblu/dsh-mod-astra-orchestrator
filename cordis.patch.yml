@@ -11,8 +11,10 @@
 #
 # Two independent jobs:
 #   1. add this package's preset directory to the preset roster
-#   2. register the ChatGPT-subscription route (`openai-codex`) so the
-#      orchestrator and reviewer models exist as soon as the profile boots
+#   2. register the ChatGPT-subscription route (`openai-codex`) for the Astra
+#      consultation roles and the `openrouter` route (key from
+#      `OPENROUTER_API_KEY`) for the GLM root, so both exist as soon as the
+#      profile boots
 #
 # User settings (`$DSH_HOME/settings.yaml`) still layer over both rows: a saved
 # `agent-default-model` selection wins over the composition value below, and
@@ -52,17 +54,27 @@
   config:
     providers:
       openai-codex: {}
+      openrouter:
+        apiKeyEnv: OPENROUTER_API_KEY
+
+# The GLM route needs no capability override: the installed pi-ai catalog
+# declares `z-ai/glm-5.3-flash` on openrouter with reasoning efforts
+# `low`/`high`/`max` (thinkingLevelMap.max === "max"), and a settings profile
+# that lists the model without `reasoningEfforts` inherits that map. Do NOT add
+# a `modelOverrides` entry for it here: it is rejected beside a settings
+# `models` list, which user settings commonly carry.
 
 # ── default route for fresh agents ──────────────────────────────────────────
 #
-# The orchestrator route. This is the composition default only: when the user
-# has a saved `agent-default-model` selection in settings, that selection wins
-# at session creation — run `install.mjs --activate` to write Astra at xhigh.
+# The orchestrator route: GLM 5.3 Flash. This is the composition default only:
+# when the user has a saved `agent-default-model` selection in settings, that
+# selection wins at session creation — run `install.mjs --activate` to write
+# `openrouter/z-ai/glm-5.3-flash` with `reasoningEffort: max`.
 # This DSH version accepts reasoning effort in settings only, not in this row.
 - id: agent-default-model
   config:
-    provider: openai-codex
-    model: gpt-6-astra
+    provider: openrouter
+    model: z-ai/glm-5.3-flash
 
 # ── sign-in seam ────────────────────────────────────────────────────────────
 #

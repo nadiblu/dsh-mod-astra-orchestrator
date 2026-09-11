@@ -1,154 +1,111 @@
-# Astra Orchestrator
+# GLM Lead · Astra Checkpoints
 
-**One lead. Focused workers. Independent review.**
+A selectable mode for [DeepSeek Harness](https://github.com/deepseek-ai/DeepSeek-Harness): GLM 5.3 Flash does ordinary coding; GPT-6 Astra supplies architecture advice, independent final-diff review, and difficult-debugging consultations.
 
-An AI coding team for [DeepSeek Harness](https://github.com/deepseek-ai/DeepSeek-Harness).
-Give it a task: Astra plans the approach, DeepSeek workers handle focused pieces,
-and a separate Astra reviewer checks the changes. The lead brings everything
-together and verifies the result.
-
-![Astra plans and verifies, DeepSeek workers explore, research, build and test, and a separate Astra reviewer checks the changes.](assets/astra-orchestrator.png)
+The preset and skill retain the identifier `astra-orchestrator` so existing installations update in place.
 
 ## Meet the team
 
-| Role | Model | Reasoning | Responsibility |
-|---|---|---|---|
-| Lead | GPT-6 Astra | **xhigh** | Plan, make architecture decisions, integrate, verify |
-| Workers | DeepSeek-V4.1-Flash | **high** | Explore the code, research, implement, test |
-| Independent reviewer | GPT-6 Astra | **high** | Check the changes and report problems |
+| Role | Route | Effort |
+|---|---|---|
+| Root, after explicit activation | `openrouter/z-ai/glm-5.3-flash` | `max` |
+| Worker, explorer, tester, researcher | `openrouter/z-ai/glm-5.3-flash` | `max` |
+| Architect, reviewer, debug consultant | `openai-codex/gpt-6-astra` | `high` |
+| Fork | Inherits the root and its history | Inherited |
 
-Astra connects through your ChatGPT subscription. Workers use the DeepSeek API.
-Everything runs inside DSH. The lead chooses the smallest useful team; a simple
-edit can stay with the lead. Workers cannot create more workers through the
-preset's delegation tools.
+GLM works inline by default. Bounded GLM workers are optional when they help; this is not an every-turn delegation or review loop.
 
-These are the defaults after activation. You can change the lead's model or
-reasoning in your session; worker and reviewer routes are fixed by the preset.
+Mandatory instructed checkpoints:
+
+- **Architecture:** call `subagent_architect` before committing to consequential state, persistence, concurrency, or control-routing decisions.
+- **Review:** call `subagent_reviewer` on the final actual diff after substantial changes and verification, before claiming completion or deploying. Architecture advice does not replace this review.
+- **Debugging:** call `subagent_debug_consult` when a defect survives one meaningful changed-hypothesis retry.
+
+Every consultation follows the same handoff: the root opens with a request header — question, context, revisioned evidence (baseline, scope, diff, verification), constraints, read-first list, and the answer contract with the severity legend — and the consult answers with numbered findings (`F1, F2, …`, severity `blocker | major | minor | note`) before the compact report. The root closes each consultation by dispositioning every material finding: fixed with its validation, accepted with the retained-risk reason, or rejected with counter-evidence. A review covers the evidence revision as handed; material edits after it require a delta review.
+
+The root must obtain the real consultation result before the dependent step. An unavailable required consultation blocks it; a consult reporting `blocked` for missing inputs keeps the checkpoint open until the root supplies them.
+
+**Enforcement boundary:** DSH enforces child route settings, tool filters, and `maxDepth: 1`. Consultation timing is instructed policy, not a runtime deployment lock. The root model remains a host/session selection; choosing the preset alone does not pin it.
 
 ## Quick start
 
-You need:
+Requirements:
 
-- A working DSH installation. This version targets `@deepseek-ai/dsh` **0.1.5-rc.1**.
-- **Node.js 20.10+** and Git.
-- A ChatGPT Plus/Pro subscription with Codex access **and Astra available**.
-- A DeepSeek API key and available API balance, already configured in DSH.
-  The standard route reads `DEEPSEEK_API_KEY`; first confirm a normal DeepSeek
-  session works. [Get a DeepSeek API key](https://platform.deepseek.com/).
-
-Clone the project and sign in:
+- DSH `0.1.5-rc.1`, Node.js 20.10+, and this checkout.
+- A configured, working OpenRouter route exposing `z-ai/glm-5.3-flash`, with credentials and balance. Copy installation preserves that route; configure it in DSH first.
+- ChatGPT/Codex authentication with access to `gpt-6-astra` for consultations.
 
 ```bash
-git clone https://github.com/nadiblu/dsh-mod-astra-orchestrator.git
-cd dsh-mod-astra-orchestrator
+node install.mjs --yes --activate --verify
+```
+
+This updates the installed preset and skill and explicitly sets fresh-session defaults to **GLM 5.3 Flash / Max**. If Codex sign-in is needed:
+
+```bash
 node install.mjs --yes --login
 ```
 
-Follow the sign-in link and code printed in your terminal. After sign-in succeeds,
-set Astra at **xhigh** as the default for new sessions:
+Restart DSH when idle, then launch from the workspace you want to use:
 
 ```bash
-node install.mjs --yes --activate
+dsh --profile web
 ```
 
-Restart DSH when it is idle, open a fresh session, and select **Astra Orchestrator**
-in the preset picker. Check that the lead shows **GPT-6 Astra / xhigh**.
-For the browser interface, run `dsh --profile web` from the project you want to work on.
+Create a **new session**, select **GLM Lead · Astra Checkpoints**, and confirm **GLM 5.3 Flash / Max** in the model picker. Existing conversations keep their own model and mounted composition.
 
 ### Try your first task
 
-```text
-Add a search field to this app's item list.
-First inspect how the list works, then plan the smallest change.
-Use a worker to implement it, test the behavior, and have a separate
-reviewer check the diff. Explain the result in plain English.
-```
+Use a disposable workspace containing a real multi-file bug or feature. Ask for the ordinary outcome without naming subagents. For a consequential persistence change, verify this sequence in the native session journal:
 
-You should see a plan, focused worker activity, a separate review, and a final
-explanation of what changed and which checks passed. Each child session shows
-its model: DeepSeek for workers, Astra at high for the reviewer.
+1. GLM investigates the source.
+2. `subagent_architect` completes on Astra/high before implementation.
+3. GLM implements and exercises the actual program.
+4. `subagent_reviewer` completes on Astra/high against the final diff before completion.
+5. A routine follow-up stays on GLM without another consultation.
 
-## Cost estimates
-
-**Illustrative token-cost comparisons, not measured project benchmarks.**
-
-Here is what the same example worker traffic would cost at published API rates.
-Input is uncached; output includes reasoning tokens. Amounts are in USD.
-
-| Example worker traffic | Astra API reference | DeepSeek peak | DeepSeek off-peak |
-|---|---:|---:|---:|
-| 10K input + 2K output | $0.20 | $0.0054 | $0.0027 |
-| 50K input + 10K output | $1.00 | $0.0270 | $0.0135 |
-| 200K input + 40K output | $4.00 | $0.1080 | $0.0540 |
-
-For this assumed token mix, worker traffic is **97.3% cheaper at peak rates**
-than pricing those same tokens on the Astra API. That is a worker-only price
-comparison. Different models can consume different token counts on the same task.
-
-**Your actual bill is different:** this mod uses your ChatGPT subscription for
-both the lead and reviewer, plus DeepSeek API charges for workers. Offloading
-does not reduce the subscription price, and subscription limits still apply.
-
-Rates checked **September 11, 2026**: Astra standard input/output **$10/$50** per
-million tokens; DeepSeek peak **$0.30/$1.20**, off-peak **$0.15/$0.60**.
-Sources: [OpenAI model pricing](https://developers.openai.com/api/docs/models/gpt-6-astra)
-and [DeepSeek pricing](https://api-docs.deepseek.com/quick_start/pricing/).
-
-[See whole-workload estimates, scheduling projections, and assumptions →](guides/cost-and-performance.md)
+**Do not substitute a headless routing demo:** DSH's headless runner bypasses agent presets. Use the web preset and its native session controller.
 
 ## What has been checked?
-
-The offline checks cover installation and removal, settings preservation, model
-routes, tool restrictions, and delegation depth. Run them with:
 
 ```bash
 npm test
 ```
 
-They use installed DSH libraries and a temporary test home. They do not call
-models or validate live coding quality. **End-to-end speed, success rate, and
-real spending improvements have not been measured for this preset.**
-The [evaluation guide](guides/orchestration-playbook.md#manual-ab-rollout-checks)
-explains how to collect those results.
+The offline suite uses installed DSH libraries and temporary homes. It checks route composition, real scoped tool-registry restrictions, depth, installation, settings preservation, and upgrade/uninstall boundaries. It does not prove model compliance or coding quality.
+
+Live behavior must be checked separately on a real preset-composed session. One successful acceptance run is not evidence of long-session reliability, lower latency, or measured savings. See the [playbook](guides/orchestration-playbook.md#manual-ab-rollout-checks).
+
+## Cost and limits
+
+The root and execution workers use OpenRouter; Astra consultations use the configured ChatGPT/Codex subscription route. Subscription limits still apply. No percentage savings, speedup, or task-quality improvement is claimed without measurement. [Measurement guide](guides/cost-and-performance.md).
 
 ## Update or remove
 
-From this checkout:
-
 ```bash
-git pull
-node install.mjs --yes              # update preset and skill; keep your default model
-node install.mjs --yes --activate   # also set the lead to Astra / xhigh
+node install.mjs --yes              # update mode; preserve selected root model/effort
+node install.mjs --yes --activate   # also select GLM / max for fresh sessions
+node install.mjs --uninstall        # remove mode; restore an owned activation
 ```
 
-Restart DSH when idle and start a fresh session after updating. Updating the
-preset installs the **high** reviewer setting; `--activate` also replaces your
-saved lead model and effort with **Astra / xhigh**.
+Activation records retain the original model selection and the exact activated route. Uninstall preserves subsequent user model/effort changes; old Astra-led activation records are recognized during upgrade/removal. Settings and replaced presets are backed up.
 
-To remove the mod and restore the saved pre-activation model selection:
+[Installation, authentication, native boundaries, and limitations](guides/setup-reference.md).
+
+## Also for Oh My Pi
+
+The separate OMP bundle installs into a project's `.omp/` directory:
 
 ```bash
-node install.mjs --uninstall
+node install-omp.mjs --project /path/to/project
 ```
 
-[Sign-in help, bundle installation, verification, and known limits →](guides/setup-reference.md)
-
-## Skills and other hosts
-
-The included `astra-orchestrator` skill gives the lead its working rules and is
-installed automatically for DSH. The preset supplies the actual models and tools.
-
-**Oh My Pi (OMP): proposed port.** OMP supports skills and named agents, so the
-same workflow could be packaged with an adapted skill and agent definitions.
-The current package targets DSH; copying its skill alone does not configure OMP.
-[Porting notes →](guides/omp-port.md)
+Its source, installation, and runtime are independent of this native DSH mode. This DSH migration does not alter an installed OMP project or move an existing conversation. See the [OMP guide](guides/omp-port.md).
 
 ## Credits and license
 
 Astra Orchestrator adapts the team structure from
 [codex-astra-luna-orchestrator](https://github.com/donvito/codex-astra-luna-orchestrator)
-for DeepSeek Harness, with DeepSeek workers, DSH routing, installation, and
-verification rules.
+for DeepSeek Harness, with GLM execution, DSH routing, installation, and verification rules.
 
 Original additions use [MIT](LICENSE). Retained upstream material remains under
 [Apache 2.0](licenses/Apache-2.0.txt). See [third-party notices](THIRD_PARTY_NOTICES.md)
