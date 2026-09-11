@@ -19,12 +19,12 @@ The topology this preset installs:
 
 | Role | Tool | Provider / model | Reasoning |
 |---|---|---|---|
-| root | — (the session itself) | requested default `openai-codex` / `gpt-6-astra` | session/user selected |
+| root | — (the session itself) | requested default `openai-codex` / `gpt-6-astra` | xhigh default; session/user may override |
 | worker | `subagent` | `deepseek-official` / `deepseek-flash` | high |
 | explorer | `subagent_explorer` | `deepseek-official` / `deepseek-flash` | high |
 | tester | `subagent_tester` | `deepseek-official` / `deepseek-flash` | high |
 | researcher | `subagent_researcher` | `deepseek-official` / `deepseek-flash` | high |
-| reviewer | `subagent_reviewer` | `openai-codex` / `gpt-6-astra` | low |
+| reviewer | `subagent_reviewer` | `openai-codex` / `gpt-6-astra` | high |
 | inherited fork | `subagent_fork` | same route and history as the root | inherited |
 
 The route pins live in `agentOptions` on each tool row of the preset, so they are

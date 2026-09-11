@@ -78,7 +78,7 @@ try {
   check('route added under existing providers', /^ {4}openai-codex: \{\}$/m.test(installed))
   check('other providers untouched', installed.includes('KIMI_CODING_API_KEY') && installed.includes('z-ai/glm-5.3-flash'))
   check('preset default set', /^agent-presets:\n {2}default: astra-orchestrator$/m.test(installed))
-  check('orchestrator activated', /provider: openai-codex\n {2}model: gpt-6-astra\n {2}reasoningEffort: medium/.test(installed))
+  check('orchestrator activated at xhigh', /provider: openai-codex\n {2}model: gpt-6-astra\n {2}reasoningEffort: xhigh/.test(installed))
   check('preset copied', existsSync(path.join(home, '.agent-presets', 'astra-orchestrator', 'agent.cordis.yml')))
   check('skill copied', existsSync(path.join(home, 'skills', 'astra-orchestrator', 'SKILL.md')))
   check('settings backup written', readdirSync(home).some(name => name.startsWith('settings.yaml.bak-')))

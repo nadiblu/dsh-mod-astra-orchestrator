@@ -2,7 +2,7 @@
   "name": "dsh-mod-astra-orchestrator",
   "version": "0.1.0",
   "private": true,
-  "description": "DSH mod: gpt-6-astra orchestrator + reviewer on the ChatGPT subscription, pinned DeepSeek-V41-Flash workers at high reasoning.",
+  "description": "Astra Orchestrator for DeepSeek Harness: Astra lead at xhigh, DeepSeek-V4.1-Flash workers at high, independent Astra review at high.",
   "type": "module",
   "license": "(MIT AND Apache-2.0)",
   "engines": {
@@ -26,6 +26,7 @@
     "preset",
     "skills",
     "guides",
+    "assets",
     "scripts",
     "README.md",
     "LICENSE",

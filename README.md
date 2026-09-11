@@ -1,267 +1,155 @@
-# dsh-mod-astra-orchestrator
+# Astra Orchestrator
 
-A DeepSeek Harness mod that ports the
-[`codex-astra-luna-orchestrator`](https://github.com/donvito/codex-astra-luna-orchestrator)
-topology to DSH — with the tiers swapped:
+**One lead. Focused workers. Independent review.**
 
-| Role | Codex original | This mod |
-|---|---|---|
-| orchestrator (root) | GPT-6 Astra, medium | **`openai-codex` / `gpt-6-astra`** (requested default; effort is session/user selected) |
-| worker family | GPT-5.6 Luna, max | **`deepseek-official` / `deepseek-flash` (DeepSeek-V41-Flash), high** |
-| independent reviewer | GPT-6 Astra, low | **`openai-codex` / `gpt-6-astra`, low** |
+An AI coding team for [DeepSeek Harness](https://github.com/deepseek-ai/DeepSeek-Harness).
+Give it a task: Astra plans the approach, DeepSeek workers handle focused pieces,
+and a separate Astra reviewer checks the changes. The lead brings everything
+together and verifies the result.
 
-Both tiers are real routes: the orchestrator and reviewer ride the **ChatGPT
-Plus/Pro subscription** through pi-ai's `openai-codex` OAuth provider, and the
-workers ride the **DeepSeek API** on the harness's own `deepseek-official` route.
-Both run inside one DSH session tree; nothing shells out to Codex.
+![Astra plans and verifies, DeepSeek workers explore, research, build and test, and a separate Astra reviewer checks the changes.](assets/astra-orchestrator.png)
 
-## What the mod installs
+## Meet the team
 
-| Piece | Where | Why |
-|---|---|---|
-| Agent preset `astra-orchestrator` | `<dshHome>/.agent-presets/astra-orchestrator/` (copy mode) or the package dir (bundle mode) | the composition: Astra persona, six role tools (four pinned flash workers, one pinned Astra reviewer, one inherited fork), plus the standard tool surface |
-| Skill `astra-orchestrator` | `<dshHome>/skills/astra-orchestrator/` | the delegation gate, architecture gate, role matrix, child report standard, cost rules, escalation and completion gates |
-| Settings route + defaults | `<dshHome>/settings.yaml` | registers `openai-codex`, makes the preset the roster default, and (with `--activate`) makes Astra the default model |
-| `openai-codex` login | credential store `<dshHome>/.credentials.yaml` | the ChatGPT subscription grant, record `llm-pi-ai/openai-codex` |
-| Bundle patch (bundle mode) | profile layer stack | adds the preset root, the route, the default model, and the `dsh-authorization` sign-in seam |
+| Role | Model | Reasoning | Responsibility |
+|---|---|---|---|
+| Lead | GPT-6 Astra | **xhigh** | Plan, make architecture decisions, integrate, verify |
+| Workers | DeepSeek-V4.1-Flash | **high** | Explore the code, research, implement, test |
+| Independent reviewer | GPT-6 Astra | **high** | Check the changes and report problems |
 
-The Codex file-by-file mapping:
+Astra connects through your ChatGPT subscription. Workers use the DeepSeek API.
+Everything runs inside DSH. The lead chooses the smallest useful team; a simple
+edit can stay with the lead. Workers cannot create more workers through the
+preset's delegation tools.
 
-| Codex original | DSH equivalent here |
-|---|---|
-| `.codex/config.toml` `model` / `model_reasoning_effort` | `agent-default-model` settings (provider/model/reasoningEffort) |
-| `.codex/agents/worker.toml` etc. | one `@deepseek-ai/dsh-tool-subagent` row per role with `agentOptions` |
-| `model = "gpt-5.6-luna"` in a role file | `agentOptions: { provider: deepseek-official, model: deepseek-flash }` |
-| `model_reasoning_effort` in a role file | `agentOptions.reasoningEffort` |
-| `developer_instructions` in a role file | the row's `persona` string |
-| `sandbox_mode = "read-only"` | the restricted rows' read-oriented `toolFilter.allow` list; the worker, tester, and fork instead deny the eight delegation/workflow tools. This is a tool restriction, not an equivalent OS sandbox |
-| `.agents/skills/astra-orchestrator/SKILL.md` | the same skill name under `<dshHome>/skills/` |
-| `AGENTS.md` orchestration policy | the preset persona plus the skill (no global AGENTS.md edit) |
-| `max_concurrent_threads_per_session = 4` | **no hard equivalent** — the skill carries a soft planning budget of three concurrently active children; delegation *depth* is capped with `maxDepth: 1`. See "Known gaps" |
+These are the defaults after activation. You can change the lead's model or
+reasoning in your session; worker and reviewer routes are fixed by the preset.
 
-## Orchestration boundaries
+## Quick start
 
-- The route pins live in `agentOptions` and are preset-owned. The generic
-  `subagent` row sets `modelSelectionSettings: false`, so no child tool exposes
-  route selection: a worker cannot silently promote itself, and a hard
-  architectural problem is resolved by the root rather than rerouted.
-- All six role tools carry `maxDepth: 1`: the root delegates once and a child
-  cannot delegate at all. The root-side `workflow` and `ralph` tools are separate
-  from those rows, inherit none of their pins or filters, and are used only on
-  explicit user request.
-- The child filters are a tool restriction, not an OS-level read-only sandbox.
-  Explorer, researcher, and reviewer keep a read-oriented allowlist and therefore
-  have no standard shell or write/edit tools: give the reviewer the actual diff or
-  before/after evidence (a diff artifact path or pasted hunks; a named whole-file
-  review only when no diff exists), and produce any runtime evidence that needs a
-  shell in the root or a shell-bearing role.
-- The root's model and effort above are the preset's requested default, not a
-  runtime guarantee — the session or user can select otherwise.
-- **Enforced versus instructed.** Only the route pins (`agentOptions`),
-  `maxDepth`, `toolFilter`, and `modelSelectionSettings` are enforced by the
-  harness. File ownership, the three-child planning budget, the child report
-  envelope, and the completion gate are prompt and skill policy: they shape
-  behavior but no runtime check rejects a violation.
+You need:
 
-## Install
+- A working DSH installation. This version targets `@deepseek-ai/dsh` **0.1.5-rc.1**.
+- **Node.js 20.10+** and Git.
+- A ChatGPT Plus/Pro subscription with Codex access **and Astra available**.
+- A DeepSeek API key and available API balance, already configured in DSH.
+  The standard route reads `DEEPSEEK_API_KEY`; first confirm a normal DeepSeek
+  session works. [Get a DeepSeek API key](https://platform.deepseek.com/).
 
-Requirements: a working `dsh` installation (this mod is authored against
-`@deepseek-ai/dsh` 0.1.5-rc.1), Node 20+, and a ChatGPT Plus/Pro subscription
-with Codex access.
-
-Clone the standalone repository and install from its root:
+Clone the project and sign in:
 
 ```bash
-git clone <repository-url> dsh-mod-astra-orchestrator
+git clone https://github.com/nadiblu/dsh-mod-astra-orchestrator.git
 cd dsh-mod-astra-orchestrator
+node install.mjs --yes --login
+```
 
-# 1. install the preset, the skill, and the route, then sign in
-node install.mjs --yes --login            # device-code sign-in by default
-#    or: node install.mjs --yes --login --method browser
+Follow the sign-in link and code printed in your terminal. After sign-in succeeds,
+set Astra at **xhigh** as the default for new sessions:
 
-# 2. optional: make Astra the default model for fresh sessions (after the sign-in worked)
+```bash
 node install.mjs --yes --activate
 ```
 
-The commands below assume you are already inside the checkout root.
+Restart DSH when it is idle, open a fresh session, and select **Astra Orchestrator**
+in the preset picker. Check that the lead shows **GPT-6 Astra / xhigh**.
+For the browser interface, run `dsh --profile web` from the project you want to work on.
 
-Then start a session on the **Astra Orchestrator** preset. `--activate` also
-points `agent-default-model` at `openai-codex/gpt-6-astra` and **rewrites that
-entry's reasoning effort to medium**, so it discards a custom root effort:
-existing users who already set their own effort should use plain
-`node install.mjs --yes` for updates, which installs the preset and skill and
-preserves `agent-default-model`. For activation, deliberately restart the host
-when idle and start a fresh session; do not assume a running or already-mounted
-preset picks up file changes. Verify the effective route and tools afterwards.
+### Try your first task
 
-Useful flags:
-
-```bash
-node install.mjs --dry-run            # print the plan and the settings diff
-node install.mjs --activate           # flip the default model (and reset its effort to medium)
-node install.mjs --logout             # delete the stored ChatGPT grant
-node install.mjs --uninstall          # remove preset, skill, route, and restore the previous default
-node install.mjs --verify             # run `dsh --profile web --dump-config` after writing
-node scripts/login-openai-codex.mjs --check   # provider/store state, no network
+```text
+Add a search field to this app's item list.
+First inspect how the list works, then plan the smallest change.
+Use a worker to implement it, test the behavior, and have a separate
+reviewer check the diff. Explain the result in plain English.
 ```
 
-Bundle mode installs the package into a profile and composes the patch layer —
-useful for a clean profile or for distribution. It requires a CLI restart:
+You should see a plan, focused worker activity, a separate review, and a final
+explanation of what changed and which checks passed. Each child session shows
+its model: DeepSeek for workers, Astra at high for the reviewer.
 
-```bash
-node install.mjs --yes --bundle --profile web
-dsh plugin --profile web why dsh-mod-astra-orchestrator   # confirm the layer
-```
+## Cost estimates
 
-The installer is idempotent, backs up `settings.yaml` before its first write,
-never touches unrelated namespaces or comments, and re-parses the merged
-document before keeping it. `scripts/test-settings-merge.mjs` proves the
-round-trip.
+**Illustrative token-cost comparisons, not measured project benchmarks.**
 
-## The ChatGPT subscription (this is the part that needs a human)
+Here is what the same example worker traffic would cost at published API rates.
+Input is uncached; output includes reasoning tokens. Amounts are in USD.
 
-`openai-codex` has **no API key** — pi-ai's provider declares OAuth only, with
-`isSubscription: true` and base URL `https://chatgpt.com/backend-api`. The flow
-is registered by `dsh-llm-pi-ai`, but only when `ctx.authorization` exists, and
-the shipped profiles neither mount `@deepseek-ai/dsh-authorization` nor ship a
-sign-in UI or a `dsh login` verb. So this mod ships the missing piece:
+| Example worker traffic | Astra API reference | DeepSeek peak | DeepSeek off-peak |
+|---|---:|---:|---:|
+| 10K input + 2K output | $0.20 | $0.0054 | $0.0027 |
+| 50K input + 10K output | $1.00 | $0.0270 | $0.0135 |
+| 200K input + 40K output | $4.00 | $0.1080 | $0.0540 |
 
-`scripts/login-openai-codex.mjs` runs pi-ai's own `openaiCodexOAuth.login()`
-out of process and writes the result into the harness credential store.
+For this assumed token mix, worker traffic is **97.3% cheaper at peak rates**
+than pricing those same tokens on the Astra API. That is a worker-only price
+comparison. Different models can consume different token counts on the same task.
 
-- **device code (default, headless)** — prints
-  `https://auth.openai.com/codex/device` plus a user code, then polls until you
-  approve it in your own browser. No local callback server, no port.
-- **browser** — starts the local callback server on `127.0.0.1:1455`, prints the
-  authorization URL, and also accepts a pasted code or redirect URL.
+**Your actual bill is different:** this mod uses your ChatGPT subscription for
+both the lead and reviewer, plus DeepSeek API charges for workers. Offloading
+does not reduce the subscription price, and subscription limits still apply.
 
-The grant lands as:
+Rates checked **September 11, 2026**: Astra standard input/output **$10/$50** per
+million tokens; DeepSeek peak **$0.30/$1.20**, off-peak **$0.15/$0.60**.
+Sources: [OpenAI model pricing](https://developers.openai.com/api/docs/models/gpt-6-astra)
+and [DeepSeek pricing](https://api-docs.deepseek.com/quick_start/pricing/).
 
-```yaml
-records:
-  llm-pi-ai/openai-codex:
-    kind: grant
-    payload:
-      type: oauth
-      access: …
-      refresh: …
-      expires: 1234567890123
-      accountId: …
-```
+[See whole-workload estimates, scheduling projections, and assumptions →](guides/cost-and-performance.md)
 
-`dsh-credentials-local` watches that file, so a running harness picks the
-sign-in up without a restart. Tokens are never printed; `--json` reports only
-metadata.
+## What has been checked?
 
-The bundle patch also mounts `@deepseek-ai/dsh-authorization` so the in-harness
-flow exists for any surface that can start an authorization attempt (ACP, SDK, a
-future client page). The CLI script above is the supported path today.
-
-## Offline validation before activation
-
-Run from this mod directory:
+The offline checks cover installation and removal, settings preservation, model
+routes, tool restrictions, and delegation depth. Run them with:
 
 ```bash
 npm test
-# Optional: validate against a specific installed harness package:
-ASTRA_ORCHESTRATOR_DSH_ROOT=/path/to/dsh npm test
 ```
 
-The suite needs installed DSH libraries; missing or incompatible libraries fail
-rather than silently skipping. It checks parsed role configuration, real scoped
-tool-registry restrictions over a stub catalog, the runtime depth policy, and a
-copy installation into a temporary `DSH_HOME`. Discovery resolves plugin paths;
-it does not mount a host. Live settings, preset, and skill are left untouched.
+They use installed DSH libraries and a temporary test home. They do not call
+models or validate live coding quality. **End-to-end speed, success rate, and
+real spending improvements have not been measured for this preset.**
+The [evaluation guide](guides/orchestration-playbook.md#manual-ab-rollout-checks)
+explains how to collect those results.
 
-These checks do not create a real child session or call a model. They do not prove
-live catalog compatibility, prompt compliance, or better coding/research outcomes.
-The playbook describes the separate behavioral A/B checks, which require explicit
-activation and realistic tasks. No speed, cost, or quality improvement is claimed.
+## Update or remove
 
-## Verifying the topology
+From this checkout:
 
-After a reinstall, restart the host when it is idle and open a fresh session;
-then check the effective route and the child tool catalog rather than assuming a
-hot reload.
-
-1. `node scripts/login-openai-codex.mjs --check` → `signed in: yes`.
-2. Start a session on the **Astra Orchestrator** preset and ask for something
-   multi-file. The root should plan, then call `subagent_explorer` /
-   `subagent` / `subagent_tester` / `subagent_reviewer`.
-3. The GUI shows each child session with its own route; workers read
-   `deepseek-official / deepseek-flash`, the reviewer `openai-codex /
-   gpt-6-astra`.
-4. Confirm the child's tool list: the restricted roles show no shell or edit
-   tools, and no child shows `subagent`, `workflow`, or `ralph`.
-5. `node install.mjs --verify` proves the composed profile tree still loads.
-   (Run it with the CLI stopped.)
-
-## Known gaps
-
-- **No hard concurrency cap.** The Codex template's
-  `max_concurrent_threads_per_session = 4` has no DSH counterpart, so the skill
-  carries a soft planning budget of three concurrently active children, reviewer
-  included. Delegation *depth* is capped instead: `maxDepth: 1` keeps every role
-  child a leaf. The root-side `workflow` and `ralph` tools are outside those rows
-  and are unaffected by the role pins and filters.
-- **`--activate` resets the root effort.** It rewrites `agent-default-model` to
-  `openai-codex/gpt-6-astra` at medium, discarding a custom effort. Use plain
-  `node install.mjs --yes` to update the preset and skill without touching the
-  default model.
-- **Do not rely on mounted-preset hot reload.** Restart the host when idle and
-  start a fresh session after an authorized reinstall. Check the effective route
-  and child catalog; offline tests do not verify a running session's refresh.
-- **No `--login` UI.** Sign-in is a CLI step in this build (see above).
-- **Version coupling.** The preset copies the shipped `standard` composition of
-  `@deepseek-ai/dsh-agent-presets` 0.1.5-rc.1. A harness upgrade that changes
-  that preset's rows needs the same rows re-copied here; the role rows
-  themselves are self-contained.
-- **`gpt-6-astra` route access.** Model availability depends on the ChatGPT plan
-  and on pi-ai's catalog (`openai-codex` currently advertises `gpt-6-astra`,
-  `gpt-5.6-luna`, `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.5`, `gpt-5.4`,
-  `gpt-5.4-mini`, `gpt-5.3-codex-spark`). A plan without Astra access fails at
-  request time; switch the orchestrator row to another codex model if so.
-
-## Design references
-
-Two sources inform the role boundaries, task-dependent fan-out, and the manual
-evaluation checklist (see the playbook):
-
-- [How we built our multi-agent research system](https://www.anthropic.com/engineering/multi-agent-research-system)
-- [Writing effective tools for agents](https://www.anthropic.com/engineering/writing-tools-for-agents)
-
-They support the design reasoning. Neither measures this preset, so they are not
-evidence that it improves outcomes here; only a local evaluation can be.
-
-## Layout
-
-```text
-dsh-mod-astra-orchestrator/
-├── cordis.patch.yml          bundle layer (roster root, route, default model, auth seam)
-├── install.mjs               installer / uninstaller / activator
-├── package.json              dsh.bundle.patch manifest + bin
-├── preset/
-│   ├── preset.yml            roster metadata
-│   └── agent.cordis.yml      the composition (standard + role-pinned delegation)
-├── skills/astra-orchestrator/SKILL.md
-├── scripts/
-│   ├── login-openai-codex.mjs
-│   ├── test-settings-merge.mjs
-│   └── test-preset-composition.mjs
-├── guides/
-│   └── orchestration-playbook.md
-├── licenses/
-│   └── Apache-2.0.txt        upstream license text (third-party)
-└── THIRD_PARTY_NOTICES.md    upstream attribution and license split
+```bash
+git pull
+node install.mjs --yes              # update preset and skill; keep your default model
+node install.mjs --yes --activate   # also set the lead to Astra / xhigh
 ```
 
-## License
+Restart DSH when idle and start a fresh session after updating. Updating the
+preset installs the **high** reviewer setting; `--activate` also replaces your
+saved lead model and effort with **Astra / xhigh**.
 
-This mod's original additions use the [MIT license](LICENSE). Any retained material
-from [codex-astra-luna-orchestrator](https://github.com/donvito/codex-astra-luna-orchestrator)
-remains subject to [Apache License 2.0](licenses/Apache-2.0.txt).
+To remove the mod and restore the saved pre-activation model selection:
 
-The exact adapted portions have not been compared file by file; no blanket claim
-of independent authorship or relicensing is made. See
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for provenance, modification
-notes, and the limits of the attribution audit. Preserve both license texts.
+```bash
+node install.mjs --uninstall
+```
+
+[Sign-in help, bundle installation, verification, and known limits →](guides/setup-reference.md)
+
+## Skills and other hosts
+
+The included `astra-orchestrator` skill gives the lead its working rules and is
+installed automatically for DSH. The preset supplies the actual models and tools.
+
+**Oh My Pi (OMP): proposed port.** OMP supports skills and named agents, so the
+same workflow could be packaged with an adapted skill and agent definitions.
+The current package targets DSH; copying its skill alone does not configure OMP.
+[Porting notes →](guides/omp-port.md)
+
+## Credits and license
+
+Astra Orchestrator adapts the team structure from
+[codex-astra-luna-orchestrator](https://github.com/donvito/codex-astra-luna-orchestrator)
+for DeepSeek Harness, with DeepSeek workers, DSH routing, installation, and
+verification rules.
+
+Original additions use [MIT](LICENSE). Retained upstream material remains under
+[Apache 2.0](licenses/Apache-2.0.txt). See [third-party notices](THIRD_PARTY_NOTICES.md)
+for attribution and the scope of the provenance review.

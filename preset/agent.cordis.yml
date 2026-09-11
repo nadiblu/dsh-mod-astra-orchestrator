@@ -38,11 +38,11 @@
       bounded execution belongs to your pinned workers.
 
       Topology of this preset:
-      - root (you): requested preset default `openai-codex` / `gpt-6-astra`, not a runtime guarantee — the
+      - root (you): requested preset default `openai-codex` / `gpt-6-astra` at `xhigh`, not a runtime guarantee — the
         session or user can select another route or reasoning effort.
       - workers: tools `subagent`, `subagent_explorer`, `subagent_tester`, `subagent_researcher` —
         pinned by this preset to `deepseek-official` / `deepseek-flash` at `high` reasoning.
-      - independent reviewer: tool `subagent_reviewer` — pinned to `openai-codex` / `gpt-6-astra` at `low` reasoning.
+      - independent reviewer: tool `subagent_reviewer` — pinned to `openai-codex` / `gpt-6-astra` at `high` reasoning.
       - `subagent_fork` inherits your own route and conversation history.
       - The six child role tools carry `maxDepth: 1`, so a child cannot delegate further: one level only.
         That cap and the child tool filters cover those six tools only. Your own root-side `workflow` and
@@ -253,7 +253,7 @@
     # tool restriction, not an OS sandbox, and own-scope plugin tools may remain.
     #
     # Worker route: deepseek-official / deepseek-flash (DeepSeek-V41-Flash), high.
-    # Reviewer route: openai-codex / gpt-6-astra, low.
+    # Reviewer route: openai-codex / gpt-6-astra, high.
     - id: tool-subagent
       name: '@deepseek-ai/dsh-tool-subagent'
       config:
@@ -464,7 +464,7 @@
         agentOptions:
           provider: openai-codex
           model: gpt-6-astra
-          reasoningEffort: low
+          reasoningEffort: high
         toolFilter:
           allow:
             - read

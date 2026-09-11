@@ -57,7 +57,8 @@
 #
 # The orchestrator route. This is the composition default only: when the user
 # has a saved `agent-default-model` selection in settings, that selection wins
-# at session creation — run `install.mjs --activate` to write it.
+# at session creation — run `install.mjs --activate` to write Astra at xhigh.
+# This DSH version accepts reasoning effort in settings only, not in this row.
 - id: agent-default-model
   config:
     provider: openai-codex

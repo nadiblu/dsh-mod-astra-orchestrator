@@ -130,7 +130,11 @@ session. Avoid `--activate`: it overwrites the root's effort setting. Confirm th
 effective route and child tool catalog rather than assuming a reload. Keep inputs,
 model routes, budgets, and workspace starting state the same across revisions;
 record revision identifiers and reserve held-out tasks. Full flag notes live in
-the README.
+the [setup reference](setup-reference.md). The current activation defaults are
+Astra at xhigh for the lead and Astra at high for the reviewer; workers remain
+DeepSeek at high. Record any overrides in your results. Keep the
+[calculated cost and scheduling scenarios](cost-and-performance.md) separate
+from measurements collected here.
 
 Run these checks by hand on the candidate and on the previous revision, then
 compare. Record each observed outcome, including failures — do not report an

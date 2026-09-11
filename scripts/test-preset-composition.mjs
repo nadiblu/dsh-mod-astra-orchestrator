@@ -50,7 +50,7 @@ const SUBAGENT_PLUGIN = '@deepseek-ai/dsh-tool-subagent'
 const ALLOWED_READ_TOOLS = ['read', 'glob', 'grep', 'read_image', 'skill', 'web_search', 'web_fetch', 'send_message']
 const DENIED_DELEGATION_TOOLS = ['subagent', 'subagent_explorer', 'subagent_tester', 'subagent_researcher', 'subagent_reviewer', 'subagent_fork', 'workflow', 'ralph']
 const FLASH_HIGH = { provider: 'deepseek-official', model: 'deepseek-flash', reasoningEffort: 'high' }
-const REVIEWER_PIN = { provider: 'openai-codex', model: 'gpt-6-astra', reasoningEffort: 'low' }
+const REVIEWER_PIN = { provider: 'openai-codex', model: 'gpt-6-astra', reasoningEffort: 'high' }
 const ROLES = [
   { toolName: 'subagent', childProvider: 'spawn', pin: FLASH_HIGH, filter: { deny: DENIED_DELEGATION_TOOLS } },
   { toolName: 'subagent_explorer', childProvider: 'spawn', pin: FLASH_HIGH, filter: { allow: ALLOWED_READ_TOOLS } },

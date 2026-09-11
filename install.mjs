@@ -8,8 +8,8 @@
  *                   `<dshHome>/.agent-presets/astra-orchestrator`, which the
  *                   roster scans as a `user` root with no configuration change,
  *                   and the skill is copied into `<dshHome>/skills/`. Takes
- *                   effect without a CLI restart (settings hot-reload; preset
- *                   roots are re-scanned).
+ *                   effect after restarting the host when idle and starting
+ *                   a fresh session; do not rely on mounted-preset hot reload.
  *
  *   bundle          the package is installed into a profile with
  *                   `dsh plugin --profile <p> add <this dir>`, which reconciles
@@ -30,7 +30,7 @@
  *   --bundle           use bundle mode instead of copying the preset
  *   --copy             force copy mode (default)
  *   --activate         also point `agent-default-model` at
- *                      openai-codex/gpt-6-astra (run AFTER signing in)
+ *                      openai-codex/gpt-6-astra at xhigh (run AFTER signing in)
  *   --login            run the ChatGPT (Codex OAuth) sign-in after installing
  *   --method <name>    login method for --login: device (default) or browser
  *   --logout           delete the stored ChatGPT grant and exit
@@ -59,7 +59,7 @@ const PKG_NAME = 'dsh-mod-astra-orchestrator'
 const PRESET_ID = 'astra-orchestrator'
 const SKILL_ID = 'astra-orchestrator'
 const ENV_KEY = 'ASTRA_ORCHESTRATOR_PRESETS'
-const ORCHESTRATOR = { provider: 'openai-codex', model: 'gpt-6-astra', reasoningEffort: 'medium' }
+const ORCHESTRATOR = { provider: 'openai-codex', model: 'gpt-6-astra', reasoningEffort: 'xhigh' }
 const ACTIVATED_VALUE = PRESET_ID
 
 // ─── cli ────────────────────────────────────────────────────────────────────
