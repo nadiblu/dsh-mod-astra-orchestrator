@@ -25,11 +25,11 @@ The bundle this skill belongs to installs this topology:
 | explorer | `astra-explorer` | `openrouter/z-ai/glm-5.3-flash:max` | `max` | declared empty (`spawns: []`), no `task` tool |
 | researcher | `astra-researcher` | `openrouter/z-ai/glm-5.3-flash:max` | `max` | declared empty (`spawns: []`), no `task` tool |
 | tester | `astra-tester` | `openrouter/z-ai/glm-5.3-flash:max` | `max` | declared empty (`spawns: []`), no `task` tool |
-| reviewer | `astra-reviewer` | `openai-codex/gpt-6-astra:high` | `high` | declared empty (`spawns: []`), no `task` tool |
+| reviewer | `astra-reviewer` | `openai-codex/gpt-6-astra:xhigh` | `xhigh` | declared empty (`spawns: []`), no `task` tool |
 
 The model selector, thinking level, tool allowlist, and empty spawn policy live
 in each agent file under `.omp/agents/`: the model carries the effort suffix
-(`:max`, `:high`) and the file repeats it in `thinking` so neither field depends
+(`:max`, `:xhigh`) and the file repeats it in `thinking` so neither field depends
 on the other being parsed. The root is a session selection, not an installed
 agent: launch it explicitly (see [Launch](#launch)) or select it in-session.
 
@@ -125,20 +125,20 @@ omp models list
 Check all of:
 
 1. `openai-codex/gpt-6-astra` is present and offers the level you intend for the
-   root (`xhigh`) and for `astra-reviewer` (`high`).
+   root (`xhigh`) and for `astra-reviewer` (`xhigh`).
 2. `openrouter/z-ai/glm-5.3-flash` is present and its top level is `max`.
 3. No `task.agentModelOverrides` entry, `task.disabledAgents` entry, or other
    setting in the effective config changes those routes.
 4. The installed agent files still declare `spawns: []`, a `thinking` of `max`
-   (or `high` for `astra-reviewer`), and a `tools` list without `task`. Read the
+   (or `xhigh` for `astra-reviewer`), and a `tools` list without `task`. Read the
    installed `.omp/agents/*.md` files under the project root. The bundle's own
    test script checks the *source* bundle, not what is installed at this target,
    so it is not a substitute for reading the installed files.
 
 If any of those checks fails, **stop and report the mismatch**. Do not silently
 keep the built-in default model, do not re-route an agent to whatever is
-available, and do not downgrade a GLM worker from `max` to `high` or a review
-from Astra to a flash model. Route substitution is a decision the user or the
+available, and do not downgrade a GLM worker from `max` to `high` or an Astra
+role from `xhigh` to a lower effort. Route substitution is a decision the user or the
 root makes explicitly, in writing, before the spawn.
 
 ### Launch
@@ -352,6 +352,9 @@ final verification.
 Do not send two writers at the same files without explicit ownership
 boundaries. One writer per file or subsystem.
 
+Waiting is never a shell command: no `sleep`, no timed stall, no polling loop
+for a child's verdict. End the turn or block through the task result mechanism.
+
 ## Default workflow
 
 For non-trivial implementation:
@@ -418,10 +421,41 @@ version-independent contract:
 - Keep identifier kinds straight: an agent identifier returned by `task` is not
   a shell job id, and a shell background-job id is not an agent id. Use each id
   only with the mechanism that produced it.
-- Do not busy-poll or sleep on a child. Continue independent work, then collect.
+- **Never wait by sleeping.** Do not run `sleep`, `timeout`, polling loops, or
+  any other timed stall to wait for a child, a build, a review, or a verdict.
+  A `sleep 300`-style stall wastes minutes per message and is a contract
+  violation. If nothing useful can run until a child finishes, end the turn
+  and handle the child's result when it arrives; if the session supports
+  blocking collection, block on that instead.
+- Do not busy-poll on a child. Continue independent work, then collect.
 - A reported failure is a failure. Do not treat a missing result as success.
-- Never finish a turn while a required child is still running or its result is
-  uncollected.
+- Yielding is not abandoning: ending the turn while a required child still runs
+  merely waits for the result mechanism — it does not claim completion and the
+  result gate stays open. Forbidden is only closing the task with a required
+  child's result uncollected or a checkpoint disposition unresolved; the final
+  answer comes only after every required child's result is collected and its
+  acceptance checked.
+
+## Continuity between Astra asks
+
+OMP `task` spawns are self-contained: a child's context ends when its report
+returns, and the tool exposes no steer/continue channel to a finished child.
+Emulate the DSH continuity contract instead — each role stays ONE persistent
+consult across the session:
+
+- Keep one consult per role per session. Before a later consult for that role,
+  record its prior findings, evidence revisions, decisions, and dispositions in
+  a durable workspace note (for example
+  `test-results/astra-consults/<session>/<role>/LEDGER.md`).
+- Deliver continuity inside the new consult prompt: a fresh `task` for the same
+  role in the same session carries the prior report (or its ledger path) plus
+  what changed since, framed as a follow-up — same finding ids, appended new
+  findings, refreshed evidence revision — instead of a cold re-review that
+  re-derives everything from scratch.
+- On a delta re-review, re-read the changed and dependent source rather than
+  trusting the pasted prior report.
+- Do not renumber findings across asks; alias each consult
+  (`architect-N`, `reviewer-N`) in the ledger so history stays auditable.
 
 ## Cost and context discipline
 

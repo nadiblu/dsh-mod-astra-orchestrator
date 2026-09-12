@@ -2,7 +2,7 @@
   "name": "dsh-mod-astra-orchestrator",
   "version": "0.1.0",
   "private": true,
-  "description": "Astra Orchestrator for DeepSeek Harness: GLM 5.3 Flash root and execution workers at max reasoning effort, with independent Astra architecture, review, and debug consultations at high.",
+  "description": "Astra Orchestrator for DeepSeek Harness: GLM 5.3 Flash root and execution workers at max reasoning effort, with independent Astra architecture, review, and debug consultations at xhigh.",
   "type": "module",
   "license": "(MIT AND Apache-2.0)",
   "engines": {

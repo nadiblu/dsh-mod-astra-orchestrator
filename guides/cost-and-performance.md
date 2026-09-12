@@ -2,7 +2,7 @@
 
 [Back to the mode](../README.md)
 
-The native mode uses **OpenRouter GLM 5.3 Flash/max** for the root and execution workers, and **Codex GPT-6 Astra/high** for architecture, final-diff review, and difficult-debugging consultations. The previous Astra-root/DeepSeek-worker estimates do not describe this topology and have been removed.
+The native mode uses **OpenRouter GLM 5.3 Flash/max** for the root and execution workers, and **Codex GPT-6 Astra/xhigh** for architecture, final-diff review, and difficult-debugging consultations. The previous Astra-root/DeepSeek-worker estimates do not describe this topology and have been removed.
 
 ## What consumes which account
 

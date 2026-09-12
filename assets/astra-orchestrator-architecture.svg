@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 900" role="img" aria-labelledby="title desc">
+  <title id="title">Astra Orchestrator task flow</title>
+  <desc id="desc">A user task enters a GLM lead, which delegates bounded execution to GLM workers, consults Astra for architecture, review, or debugging, reconciles revisioned evidence, and returns a verified result. Delegation is limited to one level.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,5 L0,10 z" fill="#7b8490"/>
+    </marker>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#15202b" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+
+  <rect width="1440" height="900" fill="#ffffff"/>
+
+  <text x="80" y="76" fill="#141a22" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="42" font-weight="700">How a task moves</text>
+  <text x="80" y="116" fill="#5c6470" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="20">One lead coordinates bounded execution, evidence, and independent checkpoints.</text>
+
+  <rect x="997" y="48" width="363" height="52" rx="26" fill="#f5f7f9" stroke="#d6dce3"/>
+  <text x="1178.5" y="80" text-anchor="middle" fill="#5c6470" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="15" font-weight="600">Native DSH  +  optional OMP bundle</text>
+
+  <!-- Connectors are drawn before the nodes so the flow stays readable. -->
+  <g fill="none" stroke="#7b8490" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)">
+    <path d="M300 290 H408"/>
+    <path d="M808 290 H1110"/>
+    <path d="M560 414 V470 H305 V528"/>
+    <path d="M690 414 V470 H1135 V528"/>
+    <path d="M465 615 H520"/>
+    <path d="M975 615 H920"/>
+    <path d="M720 528 V464 H625 V414"/>
+  </g>
+
+  <!-- Main task path -->
+  <g filter="url(#shadow)">
+    <rect x="80" y="230" width="220" height="120" rx="12" fill="#f5f7f9" stroke="#c8cfd8" stroke-width="2"/>
+    <rect x="408" y="190" width="400" height="224" rx="14" fill="#eaf2ff" stroke="#3167d9" stroke-width="2.5"/>
+    <rect x="1110" y="230" width="250" height="120" rx="12" fill="#f5f7f9" stroke="#c8cfd8" stroke-width="2"/>
+  </g>
+
+  <text x="190" y="278" text-anchor="middle" fill="#141a22" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="14" font-weight="700" letter-spacing="1.5">INPUT</text>
+  <text x="190" y="315" text-anchor="middle" fill="#141a22" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="27" font-weight="650">User task</text>
+  <text x="190" y="338" text-anchor="middle" fill="#5c6470" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="15">question • change • bug</text>
+
+  <text x="608" y="244" text-anchor="middle" fill="#141a22" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="30" font-weight="700">GLM lead</text>
+  <text x="608" y="278" text-anchor="middle" fill="#2e5ebd" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="18" font-weight="650">Plan  ·  delegate  ·  integrate  ·  verify</text>
+  <line x1="480" y1="302" x2="736" y2="302" stroke="#b8ccef" stroke-width="2"/>
+  <text x="608" y="333" text-anchor="middle" fill="#5c6470" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="16">Owns architecture, task boundaries,</text>
+  <text x="608" y="357" text-anchor="middle" fill="#5c6470" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="16">integration, final checks, and the answer.</text>
+  <text x="608" y="391" text-anchor="middle" fill="#2e5ebd" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="14" font-weight="600">root route: host/session selected</text>
+
+  <text x="1235" y="278" text-anchor="middle" fill="#141a22" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="14" font-weight="700" letter-spacing="1.5">OUTPUT</text>
+  <text x="1235" y="315" text-anchor="middle" fill="#141a22" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="27" font-weight="650">Verified result</text>
+  <text x="1235" y="338" text-anchor="middle" fill="#5c6470" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="15">answer • change • next step</text>
+
+  <!-- Bounded execution and consultation branches -->
+  <g filter="url(#shadow)">
+    <rect x="80" y="528" width="385" height="174" rx="14" fill="#eaf7f4" stroke="#29947f" stroke-width="2.5"/>
+    <rect x="975" y="528" width="385" height="174" rx="14" fill="#f4eeff" stroke="#8057bd" stroke-width="2.5"/>
+    <rect x="520" y="528" width="400" height="174" rx="14" fill="#fff7e2" stroke="#c18a1c" stroke-width="2.5"/>
+  </g>
+
+  <text x="272.5" y="570" text-anchor="middle" fill="#141a22" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="24" font-weight="700">GLM execution workers</text>
+  <text x="272.5" y="604" text-anchor="middle" fill="#247866" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="17" font-weight="650">explore  ·  research  ·  build  ·  test</text>
+  <text x="272.5" y="642" text-anchor="middle" fill="#5c6470" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="15">openrouter / z-ai / glm-5.3-flash</text>
+  <text x="272.5" y="668" text-anchor="middle" fill="#247866" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="15" font-weight="650">max reasoning  ·  bounded scope</text>
+
+  <text x="1167.5" y="570" text-anchor="middle" fill="#141a22" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="24" font-weight="700">Astra checkpoints</text>
+  <text x="1167.5" y="604" text-anchor="middle" fill="#7049aa" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="17" font-weight="650">architect  ·  reviewer  ·  debug</text>
+  <text x="1167.5" y="642" text-anchor="middle" fill="#5c6470" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="15">openai-codex / gpt-6-astra</text>
+  <text x="1167.5" y="668" text-anchor="middle" fill="#7049aa" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="15" font-weight="650">xhigh reasoning  ·  independent check</text>
+
+  <text x="720" y="570" text-anchor="middle" fill="#141a22" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="24" font-weight="700">Revisioned evidence</text>
+  <text x="720" y="604" text-anchor="middle" fill="#9a6d10" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="17" font-weight="650">request  ·  result  ·  findings ledger</text>
+  <text x="720" y="642" text-anchor="middle" fill="#5c6470" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="15">Each material finding is fixed, accepted,</text>
+  <text x="720" y="668" text-anchor="middle" fill="#5c6470" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="15">or rejected before the next step proceeds.</text>
+
+  <!-- Numbered labels make the sequence legible without relying on color. -->
+  <g font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="700" text-anchor="middle">
+    <circle cx="354" cy="274" r="16" fill="#ffffff" stroke="#7b8490" stroke-width="2"/><text x="354" y="279" fill="#5c6470">1</text>
+    <circle cx="954" cy="274" r="16" fill="#ffffff" stroke="#7b8490" stroke-width="2"/><text x="954" y="279" fill="#5c6470">5</text>
+    <circle cx="447" cy="470" r="16" fill="#ffffff" stroke="#7b8490" stroke-width="2"/><text x="447" y="475" fill="#5c6470">2</text>
+    <circle cx="855" cy="470" r="16" fill="#ffffff" stroke="#7b8490" stroke-width="2"/><text x="855" y="475" fill="#5c6470">3</text>
+    <circle cx="492" cy="615" r="16" fill="#ffffff" stroke="#7b8490" stroke-width="2"/><text x="492" y="620" fill="#5c6470">4</text>
+  </g>
+
+  <rect x="80" y="770" width="1280" height="70" rx="12" fill="#f7f8fa" stroke="#d6dce3"/>
+  <text x="720" y="799" text-anchor="middle" fill="#141a22" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="16" font-weight="650">One delegation level (maxDepth: 1)  ·  consults remain continuable  ·  the lead owns final verification</text>
+  <text x="720" y="824" text-anchor="middle" fill="#5c6470" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="14">A missing or blocked checkpoint stops the dependent step; available roles are not an automatic team requirement.</text>
+</svg>

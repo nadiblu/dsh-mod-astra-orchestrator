@@ -70,7 +70,7 @@ Use `--login` only when sign-in is needed. Installation and mode updates do not 
 ## Native routing and restrictions
 
 - `subagent`, `subagent_explorer`, `subagent_tester`, `subagent_researcher`: `openrouter/z-ai/glm-5.3-flash`, `max`.
-- `subagent_architect`, `subagent_reviewer`, `subagent_debug_consult`: `openai-codex/gpt-6-astra`, `high`.
+- `subagent_architect`, `subagent_reviewer`, `subagent_debug_consult`: `openai-codex/gpt-6-astra`, `xhigh`.
 - `subagent_fork`: inherits the root route and history.
 - Model-supplied child route overrides are disabled. All eight roles have `maxDepth: 1`.
 - Explorer, researcher, and the three Astra roles use read-oriented allowlists. Other children lose the eight role tools plus `workflow` and `ralph`.
@@ -91,7 +91,7 @@ These checks use temporary homes and installed native libraries. Missing/incompa
 
 `node install.mjs --verify` checks the composed host configuration with `dsh --profile web --dump-config`; it does not exercise a mounted preset or consult a model.
 
-For behavioral proof, create a fresh **web** session on this preset, run a disposable consequential coding task, and inspect native `request/header`, `tool/call`, and `subagent/catalog` events. Confirm real GLM/max execution, completed Astra/high architecture and final-diff reviews, and no consultation for an ordinary follow-up. The headless runner bypasses presets and cannot replace this check.
+For behavioral proof, create a fresh **web** session on this preset, run a disposable consequential coding task, and inspect native `request/header`, `tool/call`, and `subagent/catalog` events. Confirm real GLM/max execution, completed Astra/xhigh architecture and final-diff reviews, and no consultation for an ordinary follow-up. The headless runner bypasses presets and cannot replace this check.
 
 ## Known limits
 

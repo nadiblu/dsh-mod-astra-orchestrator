@@ -8,9 +8,9 @@ tools:
   - bash
   - web_search
   - yield
-model: openai-codex/gpt-6-astra:high
+model: openai-codex/gpt-6-astra:xhigh
 spawns: []
-thinking: high
+thinking: xhigh
 ---
 
 # Astra reviewer

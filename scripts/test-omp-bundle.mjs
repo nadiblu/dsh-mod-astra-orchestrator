@@ -84,8 +84,8 @@ const AGENT_CONTRACT = {
     mustHaveTools: ["read", "write", "edit", "bash", "grep", "glob"],
   },
   "astra-reviewer": {
-    model: "openai-codex/gpt-6-astra:high",
-    thinking: "high",
+    model: "openai-codex/gpt-6-astra:xhigh",
+    thinking: "xhigh",
     mustHaveTools: ["read", "grep", "glob", "bash", "web_search"],
   },
 };

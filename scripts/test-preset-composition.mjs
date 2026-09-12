@@ -50,7 +50,7 @@ const SUBAGENT_PLUGIN = '@deepseek-ai/dsh-tool-subagent'
 const ALLOWED_READ_TOOLS = ['read', 'glob', 'grep', 'read_image', 'skill', 'web_search', 'web_fetch', 'send_message']
 const DENIED_DELEGATION_TOOLS = ['subagent', 'subagent_explorer', 'subagent_tester', 'subagent_researcher', 'subagent_architect', 'subagent_reviewer', 'subagent_debug_consult', 'subagent_fork', 'workflow', 'ralph']
 const GLM_MAX = { provider: 'openrouter', model: 'z-ai/glm-5.3-flash', reasoningEffort: 'max' }
-const ASTRA_HIGH = { provider: 'openai-codex', model: 'gpt-6-astra', reasoningEffort: 'high' }
+const ASTRA_HIGH = { provider: 'openai-codex', model: 'gpt-6-astra', reasoningEffort: 'xhigh' }
 const ROLES = [
   { toolName: 'subagent', childProvider: 'spawn', pin: GLM_MAX, filter: { deny: DENIED_DELEGATION_TOOLS } },
   { toolName: 'subagent_explorer', childProvider: 'spawn', pin: GLM_MAX, filter: { allow: ALLOWED_READ_TOOLS } },
@@ -204,6 +204,26 @@ check('eight distinct role tools', new Set(enabledSubagentRows.map(row => row.co
 check('disabled provider rows stay disabled', subagentRows.filter(row => !enabled(row)).every(row => row.disabled === true))
 check('no enabled row names a disabled provider', parsedRows.filter(enabled).every(row => !['codex', 'claude-code'].includes(row.config?.provider ?? row.config?.subagentProvider)))
 check('no enabled row exposes a disabled provider tool', parsedRows.filter(enabled).every(row => !['subagent_codex', 'subagent_claude_code'].includes(row.config?.toolName)))
+
+// Doc consistency: the skill's topology table and the preset persona must teach
+// the same Astra effort as the pins in section 3 (F2 reviewer-R1; F5 reviewer-R2
+// tightened this to a per-row parse with negative fixtures).
+const skillText = readFileSync(path.join(MOD_DIR, 'skills', 'astra-orchestrator', 'SKILL.md'), 'utf8')
+const personaText = readFileSync(path.join(MOD_DIR, 'preset', 'agent.cordis.yml'), 'utf8')
+const astraEffort = ROLES.find(r => r.toolName === 'subagent_architect').pin.reasoningEffort
+const BT = '`'
+const topologyRow = tool => new RegExp('^\\|\\s*' + (tool === 'subagent_debug_consult' ? 'debug consult' : tool.replace(/^subagent_(.*)$/, '$1')) + '\\s*\\|\\s*' + BT + tool + BT + '\\s*\\|\\s*' + BT + 'openai-codex' + BT + '\\s*/\\s*' + BT + 'gpt-6-astra' + BT + '\\s*\\|\\s*' + BT + '([a-z]+)' + BT + '\\s*\\|', 'm')
+const topologyEffort = (text, tool) => text.match(topologyRow(tool))?.[1] ?? null
+for (const tool of ['subagent_architect', 'subagent_reviewer', 'subagent_debug_consult']) {
+  check(`${tool} topology row teaches the pinned effort`, topologyEffort(skillText, tool) === astraEffort, `${topologyEffort(skillText, tool)} vs ${astraEffort}`)
+}
+// Negative fixtures: a stale `high` row is detected, a missing row is detected.
+const reviewerRowPattern = topologyRow('subagent_reviewer')
+const staleFixtureText = skillText.replace(reviewerRowPattern, (m, effort) => m.replace(effort, 'high'))
+check('topology check detects a stale `high` reviewer row', topologyEffort(staleFixtureText, 'subagent_reviewer') === 'high' && astraEffort !== 'high')
+const missingRowText = skillText.replace(/^.*\| `subagent_reviewer` .*$/m, '')
+check('topology check detects a missing reviewer row', topologyEffort(missingRowText, 'subagent_reviewer') === null)
+check('persona does not teach `high` for Astra', !personaText.includes('gpt-6-astra` at\n        `high`'))
 
 // ─── 2. role contract ───────────────────────────────────────────────────────
 

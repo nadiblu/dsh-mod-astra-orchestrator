@@ -111,7 +111,7 @@ levels, not a route, and the bundle does not rely on it.
 | explorer | `astra-explorer` | `openrouter/z-ai/glm-5.3-flash` | `max` |
 | researcher | `astra-researcher` | `openrouter/z-ai/glm-5.3-flash` | `max` |
 | tester | `astra-tester` | `openrouter/z-ai/glm-5.3-flash` | `max` |
-| reviewer | `astra-reviewer` | `openai-codex/gpt-6-astra` | `high` |
+| reviewer | `astra-reviewer` | `openai-codex/gpt-6-astra` | `xhigh` |
 
 Both selectors are listed by OMP 18.1.16; `openai-codex` is a built-in provider
 with bundled Codex auth, so the Astra route needs no custom provider entry. A
@@ -122,7 +122,7 @@ when it is missing — report the gap.
 GLM 5.3 Flash lists `low`, `high`, and `max`. OMP silently clamps an unsupported
 effort instead of rejecting it, so an `xhigh` request on this model lands on
 `high`; the agents pin `max` explicitly. `gpt-6-astra` lists `low`, `medium`,
-`high`, `xhigh`, and `max`, so the root's `xhigh` and the reviewer's `high` are
+`high`, `xhigh`, and `max`, so the root's and the reviewer's `xhigh` are
 supported.
 
 ### What the routing does not enforce

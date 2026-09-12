@@ -49,7 +49,7 @@
         `z-ai/glm-5.3-flash` at `max` reasoning.
       - Astra consultations: tools `subagent_architect`, `subagent_reviewer`,
         `subagent_debug_consult` — pinned to `openai-codex` / `gpt-6-astra` at
-        `high` reasoning.
+        `xhigh` reasoning.
       - `subagent_fork` inherits your own route and conversation history.
       - All eight child role tools carry `maxDepth: 1`, so a child cannot delegate
         further: one level only. That cap and the child tool filters cover those
@@ -93,7 +93,16 @@
          context, revisioned evidence, constraints, read-first list, and the answer
          contract with the severity legend. A consult reporting `Status: blocked` for
          missing inputs keeps the checkpoint open — supply them and follow up with
-         the same child; that is not a transport failure.
+         the same child; that is not a transport failure. Keep ONE persistent
+         consult child per role per session: spawn it continuable
+         (`run_in_background: true`), wait for its settlement notice, then run
+         every later checkpoint for that role as a `send_message` turn on that
+         same child — never spawn a fresh consult child while a reusable one
+         exists. A foreground consult call is one-shot: it disposes the child
+         and breaks continuity, so never take a consultation with
+         `run_in_background: false`. Gate the dependent step on the child's
+         actual settled result, not on delivery or idle status — never sleep or
+         poll to fill the wait.
       6. Dispose of every material finding (blocker, major, minor) before the
          dependent step proceeds: fixed with its validation, accepted with the
          retained-risk reason, or rejected with counter-evidence — recorded per
@@ -284,7 +293,7 @@
     # Execution route: openrouter / z-ai/glm-5.3-flash (GLM 5.3 Flash), max.
     #   Supported efforts come from the installed model catalog/profile;
     #   the installer does not redefine those capabilities.
-    # Consult route: openai-codex / gpt-6-astra, high.
+    # Consult route: openai-codex / gpt-6-astra, xhigh.
     - id: tool-subagent
       name: '@deepseek-ai/dsh-tool-subagent'
       config:
@@ -503,7 +512,7 @@
         agentOptions:
           provider: openai-codex
           model: gpt-6-astra
-          reasoningEffort: high
+          reasoningEffort: xhigh
         toolFilter:
           allow:
             - read
@@ -552,7 +561,8 @@
 
           Place findings before the compact report, and echo in Evidence the evidence revision
           and paths you actually read. Follow-ups from the parent reach this same conversation:
-          answer them concisely inside the original scope; do not expand it.
+          answer them concisely inside the currently assigned checkpoint scope; a new
+          six-field header from the parent replaces the prior scope for this child.
 
           Report the compact form:
           Status: complete | partial | blocked
@@ -573,7 +583,7 @@
         agentOptions:
           provider: openai-codex
           model: gpt-6-astra
-          reasoningEffort: high
+          reasoningEffort: xhigh
         toolFilter:
           allow:
             - read
@@ -628,7 +638,9 @@
 
           Place findings before the compact report, and echo in Evidence the evidence revision,
           covered paths, and exclusions you actually reviewed. Follow-ups from the parent reach
-          this same conversation: answer them concisely inside the original scope; on a delta
+          this same conversation: answer them concisely inside the currently assigned checkpoint
+          scope, and a new six-field header from the parent replaces the prior scope for this
+          child (later checkpoints reuse this same reviewer this way); on a delta
           re-review, refresh the changed and dependent source rather than trusting cached reads,
           and broaden the reread when the delta's impact demands it.
 
@@ -655,7 +667,7 @@
         agentOptions:
           provider: openai-codex
           model: gpt-6-astra
-          reasoningEffort: high
+          reasoningEffort: xhigh
         toolFilter:
           allow:
             - read
@@ -701,7 +713,8 @@
 
           Place findings before the compact report, and echo in Evidence the evidence revision and
           runtime record you actually relied on. Follow-ups from the parent reach this same
-          conversation: answer them concisely inside the original scope; do not expand it.
+          conversation: answer them concisely inside the currently assigned checkpoint scope;
+          a new six-field header from the parent replaces the prior scope for this child.
 
           Report the compact form:
           Status: complete | partial | blocked

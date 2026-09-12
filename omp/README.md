@@ -15,7 +15,7 @@ state.
 | `agents/astra-explorer.md` | read-only repository exploration (GLM 5.3 Flash, `max`) |
 | `agents/astra-researcher.md` | read-only external research (GLM 5.3 Flash, `max`) |
 | `agents/astra-tester.md` | reproduction and verification (GLM 5.3 Flash, `max`) |
-| `agents/astra-reviewer.md` | independent review (`openai-codex/gpt-6-astra`, `high`) |
+| `agents/astra-reviewer.md` | independent review (`openai-codex/gpt-6-astra`, `xhigh`) |
 | `config.example.yml` | optional manual settings; never applied by the installer |
 | `../install-omp.mjs` | the installer |
 | `../scripts/test-omp-bundle.mjs` | installer and agent contract tests |
@@ -109,7 +109,7 @@ The manual path remains available: launch
 | `astra-explorer` | `openrouter/z-ai/glm-5.3-flash:max` | `max` | read, grep, glob, bash |
 | `astra-researcher` | `openrouter/z-ai/glm-5.3-flash:max` | `max` | read, grep, glob, web_search |
 | `astra-tester` | `openrouter/z-ai/glm-5.3-flash:max` | `max` | read, write, edit, bash, grep, glob |
-| `astra-reviewer` | `openai-codex/gpt-6-astra:high` | `high` | read, grep, glob, bash, web_search |
+| `astra-reviewer` | `openai-codex/gpt-6-astra:xhigh` | `xhigh` | read, grep, glob, bash, web_search |
 
 `yield` is appended by OMP to every explicit tool list, and it may add `hub` as
 well; do not rely on the runtime list being exactly what the file declares. What

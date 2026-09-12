@@ -26,9 +26,9 @@ and there is no reward for spawning roles that add nothing.
 | explorer | `subagent_explorer` | `openrouter` / `z-ai/glm-5.3-flash` | `max` |
 | tester | `subagent_tester` | `openrouter` / `z-ai/glm-5.3-flash` | `max` |
 | researcher | `subagent_researcher` | `openrouter` / `z-ai/glm-5.3-flash` | `max` |
-| architect | `subagent_architect` | `openai-codex` / `gpt-6-astra` | `high` |
-| reviewer | `subagent_reviewer` | `openai-codex` / `gpt-6-astra` | `high` |
-| debug consult | `subagent_debug_consult` | `openai-codex` / `gpt-6-astra` | `high` |
+| architect | `subagent_architect` | `openai-codex` / `gpt-6-astra` | `xhigh` |
+| reviewer | `subagent_reviewer` | `openai-codex` / `gpt-6-astra` | `xhigh` |
+| debug consult | `subagent_debug_consult` | `openai-codex` / `gpt-6-astra` | `xhigh` |
 | inherited fork | `subagent_fork` | same route and history as the root | inherited |
 
 Supported reasoning efforts come from the installed model catalog/profile.
@@ -131,7 +131,18 @@ a competing hypothesis or a discriminating test you have not run.
 
 - Make the actual call before the dependent step: architect before the design
   is locked into code, reviewer before completion is claimed, debug consult
-  before a third solo attempt.
+  before a third solo attempt. A required consultation gates the next step:
+  the dependent step waits for the child's actual settled result, not for
+  delivery or idle status. Never sleep or busy-poll to fill the wait.
+- Keep ONE persistent consult child per role per session. First checkpoint:
+  spawn with `run_in_background: true`, wait for the settlement notice, then
+  continue. Every later checkpoint for that role is a `send_message` turn on
+  the same child — a fresh consult spawn while a reusable child exists breaks
+  the continuity of findings ids and evidence revisions. A foreground consult
+  call (`run_in_background: false`) is one-shot: it disposes the child, so it
+  is never the way to take a consultation. When the mapping to a child id is
+  lost, use `list_agents` once for discovery, not polling; `ready` children
+  are resumable, and replacement is a last resort recorded with a new alias.
 - Open every consult with the request header in the handoff protocol below —
   focused inputs, not the whole history.
 - Treat a consultation as unavailable only when the call failed; report that
@@ -310,11 +321,17 @@ the diff and the evidence before treating work as done.
 ## Background children and collection
 
 Background calls use `continuable` mode and return a durable **child id**
-immediately; foreground calls wait for the result. Child ids are not job ids.
+immediately; a foreground call is one-shot — it waits for the result and then
+DISPOSES the child, so it cannot be continued later. Child ids are not job ids.
 
 - A settled background run notifies this session; the notice, or a foreground
   call's return value, carries the child's result. `send_message` starts or
   steers an idle child's next turn and is not a receipt for completed work.
+- Run REQUIRED consultations continuable (`run_in_background: true`) and keep
+  their child alive across checkpoints: a foreground call disposes the child,
+  so continuity between astra asks depends on continuable creation plus
+  `send_message` follow-ups. Gate the dependent step on the settled result,
+  not on delivery — a blocking wait is the task mechanism, never sleep.
 - `list_agents` shows registry status: `running`, `idle`, or `ready`. `ready`
   and `idle` mean the child exists, not that its work is complete or accepted.
 - Do not busy-poll or sleep on a child; keep working on independent steps.

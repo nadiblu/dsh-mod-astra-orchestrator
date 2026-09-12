@@ -10,10 +10,16 @@ The preset and skill retain the identifier `astra-orchestrator` so existing inst
 |---|---|---|
 | Root, after explicit activation | `openrouter/z-ai/glm-5.3-flash` | `max` |
 | Worker, explorer, tester, researcher | `openrouter/z-ai/glm-5.3-flash` | `max` |
-| Architect, reviewer, debug consultant | `openai-codex/gpt-6-astra` | `high` |
+| Architect, reviewer, debug consultant | `openai-codex/gpt-6-astra` | `xhigh` |
 | Fork | Inherits the root and its history | Inherited |
 
 GLM works inline by default. Bounded GLM workers are optional when they help; this is not an every-turn delegation or review loop.
+
+## How a task moves
+
+![Astra Orchestrator architecture and task flow](assets/astra-orchestrator-architecture.svg)
+
+The lead remains the single integrator: workers handle bounded execution, Astra supplies independent checkpoints, and revisioned evidence closes the loop before the result is returned. The same topology is available in the native DSH preset and the optional OMP bundle.
 
 Mandatory instructed checkpoints:
 
@@ -58,9 +64,9 @@ Create a **new session**, select **GLM Lead · Astra Checkpoints**, and confirm 
 Use a disposable workspace containing a real multi-file bug or feature. Ask for the ordinary outcome without naming subagents. For a consequential persistence change, verify this sequence in the native session journal:
 
 1. GLM investigates the source.
-2. `subagent_architect` completes on Astra/high before implementation.
+2. `subagent_architect` completes on Astra/xhigh before implementation.
 3. GLM implements and exercises the actual program.
-4. `subagent_reviewer` completes on Astra/high against the final diff before completion.
+4. `subagent_reviewer` completes on Astra/xhigh against the final diff before completion.
 5. A routine follow-up stays on GLM without another consultation.
 
 **Do not substitute a headless routing demo:** DSH's headless runner bypasses agent presets. Use the web preset and its native session controller.

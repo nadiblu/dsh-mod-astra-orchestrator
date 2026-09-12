@@ -126,7 +126,6 @@ for (const [name, options] of [
   ["missing GLM", { models: [ROOT] }],
   ["GLM lacks max", { models: [ROOT, { ...FLASH, thinking: { efforts: ["high", "xhigh"] } }] }],
   ["Astra lacks xhigh", { models: [{ ...ROOT, thinking: { efforts: ["high"] } }, FLASH] }],
-  ["Astra reviewer lacks high", { models: [{ ...ROOT, thinking: { efforts: ["xhigh"] } }, FLASH] }],
   ["setModel false", { setModel: async () => false }],
   ["setModel throws", { setModel: async () => { throw new Error("auth unavailable"); } }],
   ["wrong resolved model", { setModel: async (_value, set) => { set(OTHER); return true; } }],

@@ -15,7 +15,7 @@ The native `astra-orchestrator` preset is **GLM Lead · Astra Checkpoints**. GLM
 
 Architecture advice never substitutes for final-diff review. A role being available is not evidence that it ran. Each checkpoint requires an actual result and disposition of material findings; an unavailable required consultation blocks its dependent step.
 
-Four execution roles are pinned to OpenRouter GLM/max; three consultation roles to Codex Astra/high. Fork inherits the root. Keep tightly coupled edits with one writer and normally use no more than three concurrent children. The root's selected model remains host/session-controlled.
+Four execution roles are pinned to OpenRouter GLM/max; three consultation roles to Codex Astra/xhigh. Fork inherits the root. Keep tightly coupled edits with one writer and normally use no more than three concurrent children. The root's selected model remains host/session-controlled.
 
 ## Delegation contract
 
@@ -122,7 +122,7 @@ For repeated failures, name the reproduction and the changed hypothesis already 
 
 ## Background children and boundaries
 
-Native subagent calls return child IDs; settlement or a foreground result proves completion. `send_message` is not a completion receipt. `ready` or `idle` alone does not prove the assigned work finished. Background job IDs are separate from child IDs.
+Native subagent calls return child IDs; settlement or a foreground result proves completion. `send_message` is not a completion receipt. `ready` or `idle` alone does not prove the assigned work finished. Background job IDs are separate from child IDs. Take consultations continuable (`run_in_background: true`) and keep the same child alive across checkpoints: a foreground call is one-shot and disposes the child, so continuity between Astra asks depends on continuable creation plus `send_message` follow-ups on the same child id. Gate the dependent step on the child's settled result — never sleep or poll to fill a wait.
 
 All eight role tools enforce `maxDepth: 1`. Child route selection and tool filters are native controls; own-scope tool exemptions mean filters are not OS sandboxes. Root `workflow`/`ralph` paths are separate and reserved for explicit user requests.
 
@@ -144,8 +144,8 @@ Run `npm test` first. Then use isolated **native web-preset** sessions, identica
 | Scenario | Observable result |
 |---|---|
 | Routine request | GLM answers without Astra |
-| Consequential persistence change, without naming agents | Completed Astra/high architecture consultation before writes; GLM implementation |
-| Substantial final change | Completed Astra/high final-diff review after meaningful execution proof |
+| Consequential persistence change, without naming agents | Completed Astra/xhigh architecture consultation before writes; GLM implementation |
+| Substantial final change | Completed Astra/xhigh final-diff review after meaningful execution proof |
 | Repeated unresolved defect | Debug consultation after the changed-hypothesis retry fails |
 | Failed required consultation | Dependent completion/deployment does not proceed silently |
 | Long or resumed conversation | Required checkpoints still occur; fresh-session success alone is insufficient |

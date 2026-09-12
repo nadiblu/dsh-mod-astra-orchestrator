@@ -63,8 +63,8 @@ export default function astromode(pi) {
       const worker = available.find((model) => matches(model, WORKER));
       if (!root) throw new Error("openai-codex/gpt-6-astra is unavailable; no provider substitution permitted");
       if (!worker) throw new Error("openrouter/z-ai/glm-5.3-flash is unavailable");
-      if (!root.thinking?.efforts?.includes("xhigh") || !root.thinking?.efforts?.includes("high")) {
-        throw new Error("Astra must support xhigh for the root and high for review");
+      if (!root.thinking?.efforts?.includes("xhigh")) {
+        throw new Error("Astra must support xhigh for root and review");
       }
       if (!worker.thinking?.efforts?.includes("max")) {
         throw new Error("GLM 5.3 Flash must support max; xhigh/high is not a substitute");
