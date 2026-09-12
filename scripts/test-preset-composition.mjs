@@ -50,15 +50,15 @@ const SUBAGENT_PLUGIN = '@deepseek-ai/dsh-tool-subagent'
 const ALLOWED_READ_TOOLS = ['read', 'glob', 'grep', 'read_image', 'skill', 'web_search', 'web_fetch', 'send_message']
 const DENIED_DELEGATION_TOOLS = ['subagent', 'subagent_explorer', 'subagent_tester', 'subagent_researcher', 'subagent_architect', 'subagent_reviewer', 'subagent_debug_consult', 'subagent_fork', 'workflow', 'ralph']
 const GLM_MAX = { provider: 'openrouter', model: 'z-ai/glm-5.3-flash', reasoningEffort: 'max' }
-const ASTRA_HIGH = { provider: 'openai-codex', model: 'gpt-6-astra', reasoningEffort: 'xhigh' }
+const ASTRA_XHIGH = { provider: 'openai-codex', model: 'gpt-6-astra', reasoningEffort: 'xhigh' }
 const ROLES = [
   { toolName: 'subagent', childProvider: 'spawn', pin: GLM_MAX, filter: { deny: DENIED_DELEGATION_TOOLS } },
   { toolName: 'subagent_explorer', childProvider: 'spawn', pin: GLM_MAX, filter: { allow: ALLOWED_READ_TOOLS } },
   { toolName: 'subagent_tester', childProvider: 'spawn', pin: GLM_MAX, filter: { deny: DENIED_DELEGATION_TOOLS } },
   { toolName: 'subagent_researcher', childProvider: 'spawn', pin: GLM_MAX, filter: { allow: ALLOWED_READ_TOOLS } },
-  { toolName: 'subagent_architect', childProvider: 'spawn', pin: ASTRA_HIGH, filter: { allow: ALLOWED_READ_TOOLS } },
-  { toolName: 'subagent_reviewer', childProvider: 'spawn', pin: ASTRA_HIGH, filter: { allow: ALLOWED_READ_TOOLS } },
-  { toolName: 'subagent_debug_consult', childProvider: 'spawn', pin: ASTRA_HIGH, filter: { allow: ALLOWED_READ_TOOLS } },
+  { toolName: 'subagent_architect', childProvider: 'spawn', pin: ASTRA_XHIGH, filter: { allow: ALLOWED_READ_TOOLS } },
+  { toolName: 'subagent_reviewer', childProvider: 'spawn', pin: ASTRA_XHIGH, filter: { allow: ALLOWED_READ_TOOLS } },
+  { toolName: 'subagent_debug_consult', childProvider: 'spawn', pin: ASTRA_XHIGH, filter: { allow: ALLOWED_READ_TOOLS } },
   { toolName: 'subagent_fork', childProvider: 'fork', pin: undefined, filter: { deny: DENIED_DELEGATION_TOOLS } },
 ]
 /** Standard capabilities a restricted role must not be able to reach. */

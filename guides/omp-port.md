@@ -161,7 +161,7 @@ The installer does not change OMP session settings.
 
 ## Checked and not checked
 
-`npm run test:omp` runs 24 installer/bundle checks and 22 extension lifecycle
+`npm run test:omp` runs 24 installer/bundle checks and 21 extension lifecycle
 checks, without model calls. Coverage includes an inert unflagged launch, exact
 root model/effort activation, prompt preservation, failure guards, and fresh
 child bindings. The OMP 18.1.16 parser, flag handling, and lifecycle source were

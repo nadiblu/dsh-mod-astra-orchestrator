@@ -157,7 +157,7 @@ accepting a default or a lower effort.
 npm run test:omp
 ```
 
-46 checks: 24 bundle/installer cases and 22 mode lifecycle cases. Pure Node,
+45 checks: 24 bundle/installer cases and 21 mode lifecycle cases. Pure Node,
 no dependencies or network. Installer cases use temporary directories: fresh
 install, idempotent re-install, conflict refusal with zero
 writes, symlink and blocked-ancestor refusal with zero writes, dry-run with zero
