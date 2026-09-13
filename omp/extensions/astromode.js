@@ -40,6 +40,7 @@ const effortNames = (model) => Array.isArray(model?.thinking)
   ? model.thinking
   : Array.isArray(model?.thinking?.efforts) ? model.thinking.efforts : [];
 const selector = (model, effort) => `${model.provider}/${model.id}:${effort}`;
+const isSetupCommand = (text) => /^\/astromode-setup(?:\s|$)/.test(text?.trim() ?? "");
 
 function configPath() {
   const agentDir = process.env.PI_CODING_AGENT_DIR
@@ -71,10 +72,15 @@ function configuredRoutes() {
   return routes;
 }
 
+function headerLine(key, indent) {
+  return `${" ".repeat(indent)}${key.trim().replace(/:$/, "")}:`;
+}
+
 function headerIndex(lines, key, indent, start = 0, end = lines.length) {
   const prefix = " ".repeat(indent);
+  const name = key.trim().replace(/:$/, "");
   for (let index = start; index < end; index += 1) {
-    if (lines[index] === `${prefix}${key}:`) return index;
+    if (lines[index] === `${prefix}${name}:`) return index;
   }
   return -1;
 }
@@ -89,10 +95,30 @@ function blockEnd(lines, start, indent, limit = lines.length) {
   return limit;
 }
 
+function blockOnlyManaged(lines, start, end, { child, managed }) {
+  const childHeader = child && headerLine(child, 2);
+  for (let index = start + 1; index < end; index += 1) {
+    const line = lines[index];
+    if (!line.trim() || line.trimStart().startsWith("#")) continue;
+    if (childHeader && line === childHeader) continue;
+    if (managed.test(line)) continue;
+    return false;
+  }
+  return true;
+}
+
 function upsertMap(lines, { parent, child, entries, managed }) {
   let parentIndex = headerIndex(lines, parent, 0);
+  if (parentIndex >= 0) {
+    for (let index = lines.length - 1; index > parentIndex; index -= 1) {
+      if (lines[index] !== headerLine(parent, 0)) continue;
+      const end = blockEnd(lines, index, 0);
+      if (blockOnlyManaged(lines, index, end, { child, managed })) lines.splice(index, end - index);
+    }
+    parentIndex = headerIndex(lines, parent, 0);
+  }
   if (parentIndex < 0) {
-    lines.push(parent);
+    lines.push(headerLine(parent, 0));
     parentIndex = lines.length - 1;
   }
   const parentEnd = blockEnd(lines, parentIndex, 0);
@@ -101,7 +127,7 @@ function upsertMap(lines, { parent, child, entries, managed }) {
   if (child) {
     mapIndex = headerIndex(lines, child, 2, parentIndex + 1, parentEnd);
     if (mapIndex < 0) {
-      lines.splice(parentIndex + 1, 0, child);
+      lines.splice(parentIndex + 1, 0, headerLine(child, 2));
       mapIndex = parentIndex + 1;
     }
     entryIndent = 4;
@@ -304,8 +330,8 @@ export default function astromode(pi) {
   }
 
   for (const event of ["session_start", "session_switch", "session_branch", "session_tree"]) pi.on(event, activate);
-  pi.on("input", (_event, ctx) => {
-    if (!enabled()) return;
+  pi.on("input", (event, ctx) => {
+    if (!enabled() || isSetupCommand(event?.text)) return;
     try { if (!ready(ctx)) return { handled: true }; }
     catch (error) { reportFailure(ctx, error); return { handled: true }; }
   });

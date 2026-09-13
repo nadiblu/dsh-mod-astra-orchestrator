@@ -179,6 +179,54 @@ test("setup can route the reviewer to a model such as OpenRouter Muse Spark", as
   }
 });
 
+test("setup replaces stale duplicate role maps instead of leaving the old routes authoritative", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "astra-setup-duplicate-")); dirs.push(dir);
+  writeFileSync(join(dir, "config.yml"), [
+    "modelRoles:",
+    "  astromode_reviewer: openrouter/meta/muse-spark-1.3:max",
+    "task:",
+    "  agentModelOverrides:",
+    "    astra-reviewer: \"@astromode_reviewer\"",
+    "modelRoles:",
+    "  astromode_reviewer: nvidia/z-ai/glm-5.3-flash:max",
+    "task:",
+    "  agentModelOverrides:",
+    "    astra-reviewer: \"@astromode_reviewer\"",
+  ].join("\n") + "\n");
+  const previous = process.env.PI_CODING_AGENT_DIR;
+  process.env.PI_CODING_AGENT_DIR = dir;
+  try {
+    const selects = Array.from({ length: 10 }, () => undefined);
+    selects.push("opencode-go/glm-5.3-flash", "high");
+    const h = host({ commands: true, models: [ROOT, FLASH, MUSE], selects });
+    await h.commands.get("astromode-setup").handler("", h.ctx);
+    const config = readFileSync(join(dir, "config.yml"), "utf8");
+    assert.equal((config.match(/^modelRoles:$/gm) ?? []).length, 1, config);
+    assert.equal((config.match(/^task:$/gm) ?? []).length, 1, config);
+    assert.match(config, /astromode_reviewer:\s*["']?opencode-go\/glm-5\.3-flash:high/);
+    assert.doesNotMatch(config, /muse-spark-1\.3/);
+  } finally {
+    if (previous === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previous;
+  }
+});
+
+test("blocked Astromode does not swallow its own setup command", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "astra-setup-recovery-")); dirs.push(dir);
+  writeFileSync(join(dir, "config.yml"), "modelRoles:\n  astromode_reviewer: openrouter/meta/muse-spark-1.3\n");
+  const previous = process.env.PI_CODING_AGENT_DIR;
+  process.env.PI_CODING_AGENT_DIR = dir;
+  try {
+    const h = host({ flag: true, commands: true });
+    await h.emit("session_start");
+    assert.equal(await h.emit("input", { text: "/astromode-setup" }), undefined,
+      "the blocked-mode guard must let the recovery command reach OMP");
+  } finally {
+    if (previous === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previous;
+  }
+});
+
 test("flag read after registration activates exact root before first prompt", async () => {
   const h = host({ flag: true });
   await h.emit("session_start");
