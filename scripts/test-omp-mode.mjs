@@ -10,6 +10,7 @@ import astromode from "../omp/extensions/astromode.js";
 
 const ROOT = { provider: "openai-codex", id: "gpt-6-astra", thinking: { efforts: ["high", "xhigh"] } };
 const FLASH = { provider: "opencode-go", id: "glm-5.3-flash", thinking: { efforts: ["low", "high", "max"] } };
+const MUSE = { provider: "openrouter", id: "meta/muse-spark-1.3", thinking: ["minimal", "low", "medium", "high", "xhigh", "max"] };
 const OTHER = { provider: "other", id: "other" };
 const dirs = [];
 after(() => { for (const dir of dirs) rmSync(dir, { recursive: true, force: true }); });
@@ -17,6 +18,7 @@ after(() => { for (const dir of dirs) rmSync(dir, { recursive: true, force: true
 function host(options = {}, factory = astromode) {
   const handlers = new Map();
   const flags = new Map();
+  const commands = new Map();
   const calls = [];
   const notices = [];
   let model = options.current ?? OTHER;
@@ -26,6 +28,9 @@ function host(options = {}, factory = astromode) {
   let inference = 0;
   const pi = {
     registerFlag(name, definition) { flags.set(name, definition.default); calls.push(["flag", name, definition]); },
+    ...(options.commands ? {
+      registerCommand(name, definition) { commands.set(name, definition); calls.push(["command", name, definition]); },
+    } : {}),
     getFlag(name) { return flags.get(name); },
     on(name, fn) { handlers.set(name, fn); },
     async setModel(value) {
@@ -39,11 +44,31 @@ function host(options = {}, factory = astromode) {
   };
   const ctx = {
     hasUI: true,
+    cwd: options.cwd ?? process.cwd(),
     sessionManager: { getSessionId: () => id },
     models: { list: () => options.models ?? [ROOT, FLASH], current: () => model },
     modelRegistry: {},
     abort() { generation += 1; calls.push(["abort"]); },
-    ui: { notify: (message, severity) => notices.push([message, severity]), setStatus: (...args) => calls.push(["status", ...args]) },
+    ui: {
+      notify: (message, severity) => notices.push([message, severity]),
+      setStatus: (...args) => calls.push(["status", ...args]),
+      select: async (title, choices, dialogOptions = {}) => {
+        calls.push(["select", title, choices, dialogOptions]);
+        const requested = options.selects?.shift();
+        if (requested === null) return undefined;
+        if (typeof requested === "number") {
+          const choice = choices[requested];
+          return typeof choice === "string" ? choice : choice?.label;
+        }
+        if (typeof requested === "string") return requested;
+        const choice = choices[dialogOptions.initialIndex ?? 0];
+        return typeof choice === "string" ? choice : choice?.label;
+      },
+      confirm: async (title, message) => {
+        calls.push(["confirm", title, message]);
+        return options.confirm ?? true;
+      },
+    },
   };
   factory(pi);
   // Real CLI reparses extension flags AFTER registration. Child rebinding never
@@ -64,7 +89,7 @@ function host(options = {}, factory = astromode) {
     return result?.systemPrompt ?? systemPrompt;
   }
   return {
-    pi, ctx, flags, calls, notices, emit, prompt,
+    pi, ctx, flags, commands, calls, notices, emit, prompt,
     get model() { return model; }, get effort() { return effort; }, get inference() { return inference; },
     switchId(next) { id = next; }, drift(next = OTHER, thinking = "medium") { model = next; effort = thinking; },
   };
@@ -96,6 +121,64 @@ test("plain omp is inert even with missing rules and unusable context", async ()
   assert.equal(h.notices.length, 0);
 });
 
+test("astromode setup wizard persists default routes for every role", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "astra-setup-")); dirs.push(dir);
+  const previous = process.env.PI_CODING_AGENT_DIR;
+  process.env.PI_CODING_AGENT_DIR = dir;
+  try {
+    const h = host({ commands: true });
+    const setup = h.commands.get("astromode-setup");
+    assert.ok(setup, "setup command must be registered");
+    await setup.handler("", h.ctx);
+    const config = readFileSync(join(dir, "config.yml"), "utf8");
+    assert.match(config, /astromode_root:\s*["']?openai-codex\/gpt-6-astra:xhigh/);
+    assert.match(config, /astromode_worker:\s*["']?opencode-go\/glm-5\.3-flash:max/);
+    assert.match(config, /astra-worker:\s*["']?@astromode_worker/);
+    assert.match(config, /astra-reviewer:\s*["']?@astromode_reviewer/);
+    assert.ok(h.notices.some(([message]) => message.includes("saved")));
+  } finally {
+    if (previous === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previous;
+  }
+});
+
+test("setup preserves unrelated OMP settings while adding its managed maps", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "astra-setup-existing-")); dirs.push(dir);
+  writeFileSync(join(dir, "config.yml"), "# keep this\nmodelRoles:\n  user_role: some/provider:model\ntask:\n  maxEffort: max\n");
+  const previous = process.env.PI_CODING_AGENT_DIR;
+  process.env.PI_CODING_AGENT_DIR = dir;
+  try {
+    const h = host({ commands: true });
+    await h.commands.get("astromode-setup").handler("", h.ctx);
+    const config = readFileSync(join(dir, "config.yml"), "utf8");
+    assert.match(config, /^# keep this$/m);
+    assert.match(config, /user_role: some\/provider:model/);
+    assert.match(config, /maxEffort: max/);
+    assert.equal((config.match(/agentModelOverrides:/g) ?? []).length, 1);
+  } finally {
+    if (previous === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previous;
+  }
+});
+
+test("setup can route the reviewer to a model such as OpenRouter Muse Spark", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "astra-setup-muse-")); dirs.push(dir);
+  const previous = process.env.PI_CODING_AGENT_DIR;
+  process.env.PI_CODING_AGENT_DIR = dir;
+  try {
+    const selects = Array.from({ length: 10 }, () => undefined);
+    selects.push("openrouter/meta/muse-spark-1.3", "high");
+    const h = host({ commands: true, models: [ROOT, FLASH, MUSE], selects });
+    await h.commands.get("astromode-setup").handler("", h.ctx);
+    const config = readFileSync(join(dir, "config.yml"), "utf8");
+    assert.match(config, /astromode_reviewer:\s*["']?openrouter\/meta\/muse-spark-1\.3:high/);
+    assert.match(config, /astra-reviewer:\s*["']?@astromode_reviewer/);
+  } finally {
+    if (previous === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previous;
+  }
+});
+
 test("flag read after registration activates exact root before first prompt", async () => {
   const h = host({ flag: true });
   await h.emit("session_start");
@@ -117,7 +200,8 @@ test("actual installed skill body is reused once, preserving all parent chunks",
   assert.deepEqual(first.systemPrompt.slice(0, 2), parent);
   const text = readFileSync(new URL("../omp/skills/astra-orchestrator/SKILL.md", import.meta.url), "utf8")
     .replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, "").trim();
-  assert.equal(first.systemPrompt[2], `<!-- astra-orchestrator:astromode -->\n${text}`);
+  assert.ok(first.systemPrompt[2].startsWith(`<!-- astra-orchestrator:astromode -->\n${text}`));
+  assert.match(first.systemPrompt[2], /## Active Astromode routing/);
 });
 
 for (const [name, options] of [

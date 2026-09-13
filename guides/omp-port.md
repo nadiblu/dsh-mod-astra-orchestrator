@@ -150,6 +150,12 @@ define the distinction. `Alt+A` opens OMP's Agent Hub for inspecting agents.
 | tester | `astra-tester` | `opencode-go/glm-5.3-flash` | `max` |
 | reviewer | `astra-reviewer` | `openai-codex/gpt-6-astra` | `xhigh` |
 
+These are the shipped defaults, not permanent pins. In an interactive OMP
+session, `/astromode-setup` presents the live model catalog and lets you choose
+the model and thinking level for each role. After confirmation it writes
+`modelRoles` and `task.agentModelOverrides` to the active project or global OMP
+config; the next `--astromode` launch validates and uses those routes.
+
 Both selectors are listed by OMP 18.1.17; `openai-codex` is a built-in provider
 with bundled Codex auth, so the Astra route needs no custom provider entry. A
 catalog entry is not account entitlement and not a live call: verify the account
@@ -165,9 +171,9 @@ supported.
 ### What the routing does not enforce
 
 The installer does not edit saved model defaults. With `--astromode`, the
-extension selects Astra/xhigh for the root session; without it, root selection
-comes from normal OMP settings, session state, or CLI flags. The skill alone
-cannot select models. Child dispatch still follows OMP precedence:
+extension selects the saved root route (Astra/xhigh by default); without it,
+root selection comes from normal OMP settings, session state, or CLI flags. The
+skill alone cannot select models. Child dispatch still follows OMP precedence:
 
 1. `task.agentModelOverrides[agentName]` from an OMP settings file, when set;
 2. otherwise the agent file's `model` and `thinking`;

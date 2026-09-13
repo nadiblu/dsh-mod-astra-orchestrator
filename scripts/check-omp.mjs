@@ -21,6 +21,15 @@ if (targetArgs.length !== 2 || targetArgs[0] !== "--project" || !targetArgs[1].t
 const project = resolve(targetArgs[1]);
 const installedRoot = globalInstall ? join(homedir(), ".omp", "agent") : join(project, ".omp");
 const agents = ["worker", "explorer", "researcher", "tester", "reviewer"].map(role => `astra-${role}`);
+const roleKeys = ["root", "worker", "explorer", "researcher", "tester", "reviewer"];
+const defaultRoutes = {
+  root: "openai-codex/gpt-6-astra:xhigh",
+  worker: "opencode-go/glm-5.3-flash:max",
+  explorer: "opencode-go/glm-5.3-flash:max",
+  researcher: "opencode-go/glm-5.3-flash:max",
+  tester: "opencode-go/glm-5.3-flash:max",
+  reviewer: "openai-codex/gpt-6-astra:xhigh",
+};
 const files = ["extensions/astromode.js", "skills/astra-orchestrator/SKILL.md", ...agents.map(name => `agents/${name}.md`)];
 const assert = (condition, message) => { if (!condition) throw new Error(message); };
 const omp = argv => execFileSync("omp", argv, { cwd: project, encoding: "utf8", timeout: 45000, maxBuffer: 16 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] });
@@ -83,20 +92,30 @@ try {
   console.log(omp(["--version"]).trim());
   const settings = JSON.parse(omp(["config", "list", "--json"]));
   const value = key => settings[key]?.value;
+  const routes = { ...defaultRoutes };
+  for (const role of roleKeys) {
+    if (value("modelRoles")?.[`astromode_${role}`]) routes[role] = value("modelRoles")[`astromode_${role}`];
+  }
+  const overrides = value("task.agentModelOverrides") ?? {};
   for (const agent of agents) {
-    assert(!value("task.agentModelOverrides")?.[agent], `task.agentModelOverrides changes ${agent}`);
+    const role = agent.slice("astra-".length);
+    assert(!overrides[agent] || overrides[agent] === `@astromode_${role}`, `task.agentModelOverrides changes ${agent} outside the setup wizard`);
     assert(!value("task.disabledAgents")?.includes(agent), `task.disabledAgents disables ${agent}`);
     assert(!value("task.agentPrewalk")?.[agent] || value("task.agentPrewalk")[agent] === "off", `task.agentPrewalk can switch ${agent}'s model`);
   }
   assert(!value("prewalk.enabled"), "prewalk.enabled can switch the root model; disable it for astromode");
   console.log("PASS effective settings: no conflicting model overrides, disabled roles, or prewalk");
   const { models } = JSON.parse(omp(["models", "--json"]));
-  for (const [selector, effort] of [["openai-codex/gpt-6-astra", "xhigh"], ["opencode-go/glm-5.3-flash", "max"]]) {
-    assert(models.some(model => model.selector === selector && model.thinking?.includes(effort)), `${selector} does not offer ${effort}`);
+  for (const [role, route] of Object.entries(routes)) {
+    const match = route.match(/^(.+?):(minimal|low|medium|high|xhigh|max)$/);
+    assert(match, `invalid configured Astromode route for ${role}: ${route}`);
+    assert(models.some(model => model.selector === match[1] && model.thinking?.includes(match[2])), `${role} route ${route} is unavailable`);
   }
-  console.log("PASS catalog: Astra xhigh and GLM Flash max");
+  console.log("PASS catalog: all configured Astromode routes and efforts are available");
   const state = await startup();
-  assert(state.model?.provider === "openai-codex" && state.model?.id === "gpt-6-astra" && state.thinkingLevel === "xhigh", "Astromode did not activate Astra/xhigh exactly");
+  const root = routes.root.match(/^(.+?):(minimal|low|medium|high|xhigh|max)$/);
+  const [provider, id] = root[1].split(/\/(.*)/s).slice(0, 2);
+  assert(state.model?.provider === provider && state.model?.id === id && state.thinkingLevel === root[2], "Astromode did not activate the configured root exactly");
   assert(!state.isStreaming, "Unexpected model streaming during startup-only check");
   const task = state.dumpTools?.find(tool => tool.name === "task");
   assert(task, "Native task tool is unavailable");

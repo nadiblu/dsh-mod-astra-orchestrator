@@ -1,6 +1,6 @@
 ---
 name: astra-orchestrator
-description: Orchestrate coding work in Oh My Pi as the Astra root agent on openai-codex/gpt-6-astra, delegating bounded execution to pinned GLM 5.3 Flash workers on the native task tool and taking independent review on GPT-6 Astra. Use for multi-file features, cross-component debugging, repo-wide changes, parallelizable workstreams, or whenever the user asks to delegate or use agents. Do not use for trivial one-file edits or simple questions.
+description: Orchestrate coding work in Oh My Pi with configurable root, worker, and review models, delegating bounded execution through the native task tool. The shipped defaults use Astra for the lead/reviewer and GLM 5.3 Flash for workers. Use for multi-file features, cross-component debugging, repo-wide changes, parallelizable workstreams, or whenever the user asks to delegate or use agents. Do not use for trivial one-file edits or simple questions.
 ---
 
 # Astra Orchestrator (Oh My Pi)
@@ -16,7 +16,7 @@ Run the root session as the orchestrator: the root plans and decides, bounded
 execution goes to pinned GLM 5.3 Flash agents through OMP's native `task` tool,
 and the root integrates, verifies, and presents the final result.
 
-The bundle this skill belongs to installs this topology:
+The bundle this skill belongs to installs this default topology:
 
 | Role | Agent name | Model | Thinking level | Spawn policy |
 |---|---|---|---|---|
@@ -36,6 +36,13 @@ agent: launch it explicitly (see [Launch](#launch)) or select it in-session.
 
 `max`, not `xhigh`, is deliberate on the GLM workers: the OpenCode Go GLM
 catalog exposes `low`, `high`, and `max`. The agents pin `max` explicitly.
+
+Run `/astromode-setup` in an interactive OMP session to choose a model and
+thinking level for every role from the live model catalog. The wizard stores
+the choices as `modelRoles` aliases and `task.agentModelOverrides`; those saved
+routes override these defaults on the next `--astromode` launch. The active
+selection is appended to the session prompt so the lead can preflight the
+actual routes.
 
 ## Delegation gate
 
@@ -113,9 +120,10 @@ name.
 ## Preflight the routes before you delegate
 
 These rules alone cannot switch the session model. The optional `--astromode`
-extension selects the root route and loads these rules automatically. Before
-the first spawn, still confirm the effective child routes and efforts rather
-than assuming their agent files have not been overridden:
+extension selects the saved root route and loads these rules automatically.
+Without a setup file, that route is the Astra default shown above. Before the
+first spawn, still confirm the effective child routes and efforts rather than
+assuming their agent files have not been overridden:
 
 ```bash
 omp models list
@@ -123,10 +131,12 @@ omp models list
 
 Check all of:
 
-1. `openai-codex/gpt-6-astra` is present and offers the level you intend for the
-   root (`xhigh`) and for `astra-reviewer` (`xhigh`).
-2. `opencode-go/glm-5.3-flash` is present and its top level is `max`.
-3. No `task.agentModelOverrides` entry, `task.disabledAgents` entry, or other
+1. The active routing section injected by `--astromode` matches the model and
+   effort you intend for each role. If it does not, run `/astromode-setup`.
+2. Every configured model is present in `omp models list` at its selected
+   effort. The defaults require Astra `xhigh` and GLM Flash `max`; a custom
+   setup may intentionally choose different supported routes.
+3. No `task.disabledAgents` entry or other
    setting in the effective config changes those routes.
 4. The installed agent files still declare `spawns: []`, a `thinking` of `max`
    (or `xhigh` for `astra-reviewer`), and a `tools` list without `task`. Read the
@@ -151,13 +161,15 @@ project-only installation instead requires that project's root:
 omp --astromode
 ```
 
-The startup extension selects Astra at `xhigh` and injects these rules before
-each turn. If loaded through that mode, the rules are already active: do not
-ask the user to invoke a skill or launch OMP again. Plain `omp` leaves the mode
-disabled; the flag requires this bundle's extension to be discovered. Global
-files live under `~/.omp/agent/{extensions,skills,agents}` in the default
-profile. Keep only one astromode extension active: older project copies must
-be backed up and removed when migrating to global installation.
+The startup extension selects the saved root route (Astra at `xhigh` by
+default) and injects these rules before each turn. If loaded through that mode,
+the rules are already active: do not ask the user to invoke a skill or launch
+OMP again. Plain `omp` leaves the mode disabled; the flag requires this
+bundle's extension to be discovered. Use `/astromode-setup` before launching
+to change the model map. Global files live under
+`~/.omp/agent/{extensions,skills,agents}` in the default profile. Keep only one
+astromode extension active: older project copies must be backed up and removed
+when migrating to global installation.
 
 For the manual skill path instead, launch
 `omp --model openai-codex/gpt-6-astra:xhigh` without initial task text, then use
@@ -179,10 +191,11 @@ allowlist is what keeps that from happening, so treat the omission as the real
 control and the empty policy as documentation of intent. Do not describe
 `spawns: []` as an enforced empty allowlist.
 
-With `--astromode`, the extension checks catalog support, selects Codex Astra
-at `xhigh`, and blocks a new turn if the root model or effort has changed.
-Reload or restart with the flag after correcting a blocked activation. Without
-the flag, the manual skill does not enforce the root model or effort.
+With `--astromode`, the extension checks catalog support, selects the configured
+root at its configured effort, and blocks a new turn if the root model or effort
+has changed. Reload or restart with the flag after correcting a blocked
+activation. Without the flag, the manual skill does not enforce the root model
+or effort.
 
 The following remain instructed policy, not runtime enforcement:
 

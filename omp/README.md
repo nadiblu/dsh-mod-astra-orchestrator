@@ -1,15 +1,15 @@
 # Astra Orchestrator for Oh My Pi
 
-Additive Oh My Pi (OMP) bundle: an `--astromode` startup extension, shared
-orchestration rules, and five leaf agents. It installs nothing by itself and
-does not overwrite existing files or edit DSH files, OMP config, credentials,
-or saved model defaults. Choose a global or project installation explicitly.
+Additive Oh My Pi (OMP) bundle: an `--astromode` startup extension, a model
+setup wizard, shared orchestration rules, and five leaf agents. Installation
+does not edit OMP config, credentials, or saved model defaults; the setup wizard
+only writes the routes you explicitly confirm.
 
 ## What ships
 
 | Path | Role |
 |---|---|
-| `extensions/astromode.js` | opt-in `omp --astromode` activation |
+| `extensions/astromode.js` | opt-in `omp --astromode` activation and `/astromode-setup` wizard |
 | `skills/astra-orchestrator/SKILL.md` | shared root rules, automatically injected by the mode |
 | `agents/astra-worker.md` | bounded implementation (GLM 5.3 Flash, `max`) |
 | `agents/astra-explorer.md` | read-only repository exploration (GLM 5.3 Flash, `max`) |
@@ -71,7 +71,28 @@ there. Inspect the target and rerun. Do not replace or mutate `.omp` from
 another process while the installer runs, and do not point two concurrent
 installs at the same project — the preflight is a check, not a lock.
 
-## Settings are manual
+## Choose models
+
+After installation, run this command in an interactive OMP session:
+
+```text
+/astromode-setup
+```
+
+It walks through the lead/root, worker, explorer, researcher, tester, and
+reviewer roles. Each role gets a model picker followed by a thinking-level
+picker; the current route or shipped default is preselected. A final summary
+must be confirmed before anything is written. The saved routes use OMP's
+`modelRoles` aliases and `task.agentModelOverrides`, so they apply on the next
+`omp --astromode` launch. Project installs save to that project's `.omp/config.yml`;
+global installs save to `~/.omp/agent/config.yml`.
+
+The shipped defaults remain:
+
+- Astra `xhigh` for the lead and independent reviewer.
+- GLM 5.3 Flash `max` for worker, explorer, researcher, and tester.
+
+## Other settings
 
 The installer does not apply settings. Merge what you want from
 `config.example.yml` into `~/.omp/agent/config.yml` or
@@ -97,8 +118,9 @@ project's root for a project-only installation):
 omp --astromode
 ```
 
-This extension-owned flag selects Astra at `xhigh` and injects the shared rules
-before each turn; no `/skill` command is needed. Keep extension discovery enabled.
+This extension-owned flag selects the saved root route (Astra at `xhigh` by
+default) and injects the shared rules before each turn; no `/skill` command is
+needed. Use `/astromode-setup` to change the saved role routes. Keep extension discovery enabled.
 Global extensions are available across folders. Project-only extensions are
 discovered in the current directory, not ancestor folders.
 Plain `omp` leaves the mode inactive.
@@ -186,7 +208,7 @@ accepting a default or a lower effort.
 npm run test:omp
 ```
 
-49 checks: 28 bundle/installer cases and 21 mode lifecycle cases. Pure Node,
+52 checks: 28 bundle/installer cases and 24 mode/setup cases. Pure Node,
 no dependencies or network. Installer cases use temporary directories: fresh
 install, idempotent re-install, conflict refusal with zero
 writes, symlink and blocked-ancestor refusal with zero writes, dry-run with zero
