@@ -2,8 +2,8 @@
 
 Additive Oh My Pi (OMP) bundle: an `--astromode` startup extension, shared
 orchestration rules, and five leaf agents. It installs nothing by itself and
-changes nothing that already exists — no DSH files, no OMP config, no global
-state.
+does not overwrite existing files or edit DSH files, OMP config, credentials,
+or saved model defaults. Choose a global or project installation explicitly.
 
 ## What ships
 
@@ -34,22 +34,32 @@ Installed layout under the target project:
 ```
 
 OMP discovers project skills at `.omp/skills/<name>/SKILL.md` and project task
-agents at `.omp/agents/*.md`. Nothing here is installed at user level.
+agents at `.omp/agents/*.md`. With `--global`, the same seven paths instead
+live under `~/.omp/agent/`, making the mode available from any folder in the
+default OMP profile. Named profiles and `PI_CODING_AGENT_DIR` use separate
+agent directories and are not populated by `--global`.
 
 ## Install
 
 ```bash
+node install-omp.mjs --global                              # all folders, default profile
+node scripts/check-omp.mjs --global --project /path/to/project
+
+# Or install only for one project:
 node install-omp.mjs --project /path/to/project --dry-run   # plan only
 node install-omp.mjs --project /path/to/project             # write
+node scripts/check-omp.mjs --project /path/to/project       # verify native readiness
 node install-omp.mjs --help
 ```
 
 The installer is pure Node (>= 20.10) with no dependencies. It writes only into
-`<project>/.omp/{skills,agents,extensions}`, requires an explicit
-`--project` target, skips files whose content already matches, and refuses the
+`<project>/.omp/{skills,agents,extensions}` or the corresponding global
+`~/.omp/agent/` directories. It requires an explicit `--project` or `--global`, skips files whose content already matches, and refuses the
 whole install if any target file differs from the bundle — before writing
-anything. It never reads or edits a config file, never installs globally, and
-never touches credentials or model defaults.
+anything. It never reads or edits a config file and never touches credentials
+or model defaults. Before migrating to global installation, back up old project
+extension, skill, and agent copies outside OMP discovery directories. Project
+agents can override global agents, and duplicate extension copies can conflict.
 
 Exit codes: `0` installed / already current / clean dry-run, `1` collision or
 filesystem error, `2` usage error.
@@ -80,7 +90,8 @@ normalizes to unspecified and is declaration of intent, not an enforcement.
 
 ## Run
 
-From the installed project's root:
+After global installation, from any working folder (or from the installed
+project's root for a project-only installation):
 
 ```bash
 omp --astromode
@@ -88,7 +99,8 @@ omp --astromode
 
 This extension-owned flag selects Astra at `xhigh` and injects the shared rules
 before each turn; no `/skill` command is needed. Keep extension discovery enabled.
-Project extensions are discovered in the current directory, not ancestor folders.
+Global extensions are available across folders. Project-only extensions are
+discovered in the current directory, not ancestor folders.
 Plain `omp` leaves the mode inactive.
 
 Activation follows the current invocation, including switching or resuming root
@@ -100,15 +112,33 @@ The manual path remains available: launch
 `omp --model openai-codex/gpt-6-astra:xhigh` without an initial task, then invoke
 `/skill:astra-orchestrator <task>`. Only this manual path requires skill commands.
 
+The readiness command compares the installed files with this checkout, checks
+effective routing settings and catalog efforts, and starts OMP in RPC mode to
+verify the root, five task agents, and `hub` tool. It sends no model prompt.
+Run it again after upgrading OMP or changing agent/config files. It checks a
+plain `omp --astromode` launch; additional CLI overlays can change the result.
+
+Start a first task with a concrete outcome and acceptance check, for example:
+
+> Add the requested feature. Explore the relevant code, give a bounded change
+> to a GLM worker, run the relevant tests, and ask the Astra reviewer to inspect
+> the final diff. Reuse the reviewer for fixes and keep its findings ledger
+> updated. Report the result, tests, and unresolved findings.
+
+Press `Alt+A` in OMP to inspect the running agents and their models. For later
+review checkpoints, the lead should use `hub` to message the same child id.
+OMP 18.1.17 supports waking idle and reviving parked non-isolated children;
+the ledger fallback is for unavailable continuation, not the default.
+
 ## Routes and what is enforced
 
 | Agent | Model selector | Thinking level | Tools |
 |---|---|---|---|
 | root session | `openai-codex/gpt-6-astra` | `xhigh` | session default |
-| `astra-worker` | `openrouter/z-ai/glm-5.3-flash:max` | `max` | read, write, edit, bash, grep, glob |
-| `astra-explorer` | `openrouter/z-ai/glm-5.3-flash:max` | `max` | read, grep, glob, bash |
-| `astra-researcher` | `openrouter/z-ai/glm-5.3-flash:max` | `max` | read, grep, glob, web_search |
-| `astra-tester` | `openrouter/z-ai/glm-5.3-flash:max` | `max` | read, write, edit, bash, grep, glob |
+| `astra-worker` | `opencode-go/glm-5.3-flash:max` | `max` | read, write, edit, bash, grep, glob |
+| `astra-explorer` | `opencode-go/glm-5.3-flash:max` | `max` | read, grep, glob, bash |
+| `astra-researcher` | `opencode-go/glm-5.3-flash:max` | `max` | read, grep, glob, web_search |
+| `astra-tester` | `opencode-go/glm-5.3-flash:max` | `max` | read, write, edit, bash, grep, glob |
 | `astra-reviewer` | `openai-codex/gpt-6-astra:xhigh` | `xhigh` | read, grep, glob, bash, web_search |
 
 `yield` is appended by OMP to every explicit tool list, and it may add `hub` as
@@ -121,9 +151,8 @@ so it is not itself an enforced empty allowlist and must not be described as
 one. None of this is an OS sandbox: a shell-bearing agent still runs with the
 permissions of the session that spawned it.
 
-`max`, not `xhigh`, is deliberate: the OpenRouter GLM 5.3 Flash catalog exposes
-`low`, `high`, and `max`, so an `xhigh` request resolves to `high`. The bundle
-targets the top level the catalog actually offers.
+`max`, not `xhigh`, is deliberate: the OpenCode Go GLM 5.3 Flash catalog exposes
+`low`, `high`, and `max`. The agents pin `max` explicitly.
 
 ## Limits — read before trusting the pins
 
@@ -157,7 +186,7 @@ accepting a default or a lower effort.
 npm run test:omp
 ```
 
-45 checks: 24 bundle/installer cases and 21 mode lifecycle cases. Pure Node,
+49 checks: 28 bundle/installer cases and 21 mode lifecycle cases. Pure Node,
 no dependencies or network. Installer cases use temporary directories: fresh
 install, idempotent re-install, conflict refusal with zero
 writes, symlink and blocked-ancestor refusal with zero writes, dry-run with zero
@@ -167,4 +196,5 @@ tool, required report block).
 
 The contract tests read the bundle under `omp/`, not an installed target. They
 prove what this repository ships; confirming what a project actually has
-installed still means reading that project's `.omp/agents/*.md`.
+installed still means inspecting its effective project or global agent files.
+Use the readiness command with `--global` when checking a global installation.

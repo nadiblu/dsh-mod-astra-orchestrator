@@ -1,16 +1,16 @@
 #!/usr/bin/env node
-// Install the additive Oh My Pi Astra Orchestrator bundle into a project.
+// Install the Oh My Pi Astra bundle into a project or the default user profile.
 //
 // Scope, deliberately narrow:
-//   * writes only into <project>/.omp/{skills,agents,extensions}
-//   * requires an explicit --project DIR; there is no default target
+//   * writes only into the selected skills, agents, and extensions directories
+//   * requires explicit --project DIR or --global; there is no implicit target
 //   * refuses every non-identical collision before it writes anything
 //   * refuses any symlink or non-directory ancestor inside the project, so a
 //     redirected `.omp` cannot push writes outside the explicit target
 //   * creates each file exclusively (flag "wx") rather than truncating
 //   * never edits, creates, or backs up any config file
-//   * never touches credentials, model defaults, or global/user state
-//   * no global install, no dependency install, no network access
+//   * never touches credentials or model defaults
+//   * no dependency install or network access
 //
 // Node >= 20.10, no third-party dependencies.
 
@@ -23,6 +23,7 @@ import {
 } from "node:fs";
 import { join, resolve, relative, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { homedir } from "node:os";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const BUNDLE_ROOT = join(HERE, "omp");
@@ -44,12 +45,15 @@ const USAGE = `install-omp.mjs — install the Astra Orchestrator bundle for Oh 
 
 USAGE
   node install-omp.mjs --project DIR [--dry-run]
+  node install-omp.mjs --global [--dry-run]
   node install-omp.mjs --help
 
-REQUIRED
+TARGET (choose exactly one)
   --project DIR   Project directory to install into. Files land in
                   DIR/.omp/{skills,agents,extensions}/. The directory must
                   already exist; there is no default target.
+  --global        Install for all folders in the default OMP profile at
+                  ~/.omp/agent/{skills,agents,extensions}/.
 
 OPTIONS
   --dry-run       Report every action without writing anything.
@@ -68,8 +72,9 @@ BEHAVIOR
     may leave a partial install; no files are deleted to roll it back.
   * Do not concurrently rename or replace target directories while installing.
     Path checks are not an OS-level sandbox or an atomic transaction.
-  * Existing config, credentials, model defaults, and user/global state are
-    never read or modified. Merge omp/config.example.yml into your own
+  * Existing config, credentials, and model defaults are never read or modified.
+    --global writes only bundle files in the default user profile. Back up and
+    remove older project copies to avoid duplicate extension activation. Merge omp/config.example.yml into your own
     config.yml yourself if you want those settings.
 
 EXIT CODES
@@ -84,11 +89,13 @@ function fail(code, message) {
 }
 
 function parseArgs(argv) {
-  const out = { project: undefined, dryRun: false, help: false };
+  const out = { project: undefined, global: false, dryRun: false, help: false };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--help" || arg === "-h") {
       out.help = true;
+    } else if (arg === "--global") {
+      out.global = true;
     } else if (arg === "--dry-run") {
       out.dryRun = true;
     } else if (arg === "--project") {
@@ -176,11 +183,16 @@ function main() {
     return;
   }
 
-  if (args.project === undefined || args.project.trim() === "") {
-    fail(2, "error: --project DIR is required\n\n" + USAGE);
+  if (args.global && args.project !== undefined) {
+    fail(2, "error: choose --global or --project DIR, not both\n\n" + USAGE);
+  }
+  if (!args.global && (args.project === undefined || args.project.trim() === "")) {
+    fail(2, "error: --project DIR is required unless --global is specified\n\n" + USAGE);
   }
 
-  const projectDir = resolve(args.project);
+  const projectDir = resolve(args.global ? homedir() : args.project);
+  const prefix = args.global ? [".omp", "agent"] : [".omp"];
+  const targetRoot = join(projectDir, ...prefix);
   if (!existsSync(projectDir) || !lstatSync(projectDir).isDirectory()) {
     fail(1, `error: --project target is not an existing directory: ${projectDir}`);
   }
@@ -196,7 +208,7 @@ function main() {
   // write. An unsafe target refuses the whole install with zero writes.
   const unsafe = [];
   const plan = bundle.map((entry) => {
-    const parts = [".omp", ...entry.rel.split("/")];
+    const parts = [...prefix, ...entry.rel.split("/")];
     const target = join(projectDir, ...parts);
     const inspection = inspectTarget(projectDir, parts);
     let state;
@@ -214,7 +226,7 @@ function main() {
   if (unsafe.length > 0) {
     const lines = [];
     lines.push(`bundle:  ${BUNDLE_ROOT}`);
-    lines.push(`project: ${projectDir}`);
+    lines.push(`${args.global ? "home" : "project"}: ${projectDir}`);
     lines.push("");
     lines.push("refusing to write: a target path is not a plain directory/file node.");
     lines.push("A symlink or a blocking non-directory could redirect this install outside");
@@ -232,8 +244,8 @@ function main() {
   const mode = args.dryRun ? "dry-run" : "install";
   const lines = [];
   lines.push(`bundle:  ${BUNDLE_ROOT}`);
-  lines.push(`project: ${projectDir}`);
-  lines.push(`target:  ${join(projectDir, ".omp")}`);
+  lines.push(`${args.global ? "home" : "project"}: ${projectDir}`);
+  lines.push(`target:  ${targetRoot}`);
   lines.push(`mode:    ${mode}`);
   lines.push("");
 
@@ -274,7 +286,7 @@ function main() {
   if (!args.dryRun) {
     try {
       for (const item of creates) {
-        const inspection = inspectTarget(projectDir, [".omp", ...item.rel.split("/")]);
+        const inspection = inspectTarget(projectDir, [...prefix, ...item.rel.split("/")]);
         if (inspection.kind !== "absent") {
           throw new Error(`target changed after preflight: ${item.target}`);
         }

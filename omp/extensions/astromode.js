@@ -7,7 +7,7 @@
 import { readFileSync } from "node:fs";
 
 const ROOT = { provider: "openai-codex", id: "gpt-6-astra" };
-const WORKER = { provider: "openrouter", id: "z-ai/glm-5.3-flash" };
+const WORKER = { provider: "opencode-go", id: "glm-5.3-flash" };
 const MARKER = "<!-- astra-orchestrator:astromode -->";
 const RULES_URL = new URL("../skills/astra-orchestrator/SKILL.md", import.meta.url);
 const matches = (model, route) => model?.provider === route.provider && model?.id === route.id;
@@ -62,7 +62,7 @@ export default function astromode(pi) {
       const root = available.find((model) => matches(model, ROOT));
       const worker = available.find((model) => matches(model, WORKER));
       if (!root) throw new Error("openai-codex/gpt-6-astra is unavailable; no provider substitution permitted");
-      if (!worker) throw new Error("openrouter/z-ai/glm-5.3-flash is unavailable");
+      if (!worker) throw new Error("opencode-go/glm-5.3-flash is unavailable");
       if (!root.thinking?.efforts?.includes("xhigh")) {
         throw new Error("Astra must support xhigh for root and review");
       }

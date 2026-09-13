@@ -2,19 +2,23 @@
 
 [Back to the README](../README.md)
 
-**Status: implemented and offline-checked; no live model call has been run.**
+**Status: installed globally and live-tested on OMP 18.1.17 (September 13, 2026).**
 This repository ships an OMP bundle next to the DeepSeek Harness (DSH) preset.
-The DSH install is unchanged by it. Both model routes are catalog-verified on OMP
-18.1.16; account entitlement and live inference are not verified.
+The DSH install is unchanged by it. Astra/xhigh root and reviewer inference,
+OpenCode Go GLM Flash/max worker inference, and a complete coding/test/review workflow
+passed on the tested local account. This is a small acceptance test, not a
+quality, speed, or cost benchmark.
 
 The bundle includes an opt-in `--astromode` extension, shared skill rules, and
-five project agents. The extension selects the root model and injects the rules;
+five agents. The extension selects the root model and injects the rules;
 the agent files configure workers and review. Workflow rules remain instructions,
-not an OS sandbox. The install is project-scoped, not global.
+not an OS sandbox. Choose `--global` for all folders in the default profile,
+or `--project DIR` for one project. Separate named profiles and custom
+`PI_CODING_AGENT_DIR` directories are not populated by the global installer.
 
 ## What the installer adds
 
-| Path under `<project>/.omp/` | Role |
+| Path under `<project>/.omp/` or `~/.omp/agent/` | Role |
 |---|---|
 | `extensions/astromode.js` | registers `--astromode` and activates the mode |
 | `skills/astra-orchestrator/SKILL.md` | shared working rules, automatically loaded by the mode |
@@ -25,19 +29,30 @@ not an OS sandbox. The install is project-scoped, not global.
 | `agents/astra-reviewer.md` | independent post-change review |
 
 `config.example.yml` sits next to the agents in this checkout as an optional,
-**not applied** reference overlay. Nothing else is written: no `~/.omp/` change,
-no global install, and no credential, `config.yml`, or `models.yml` edit.
+**not applied** reference overlay. Only the seven bundle files are written;
+no credentials, `config.yml`, or `models.yml` are edited.
 
 ## Install
 
-From this checkout, against the project that should use it:
+From this checkout:
 
 ```bash
+node install-omp.mjs --global                              # available from every folder
+node scripts/check-omp.mjs --global --project /path/to/project
+
+# Alternative: install only for one project
 node install-omp.mjs --project /path/to/project          # show the plan and write
 node install-omp.mjs --project /path/to/project --dry-run # preview only
+node scripts/check-omp.mjs --project /path/to/project     # inspect installed/native setup
 ```
 
 ## Conflicts
+
+When migrating to global, back up and remove older project copies of this
+extension, skill, and five agents from OMP discovery paths. Project agents
+override user agents, while different extension file paths may both load.
+The installer intentionally does not search or delete files in other projects.
+
 
 There is no ownership tracking. For each target file, identical content is
 treated as already installed and left alone; **any** difference stops the
@@ -53,12 +68,14 @@ replace target directories concurrently with installation. Existing symlinked
 targets and blocked ancestors are refused; new files use exclusive creation.
 
 Exit codes: `0` installed or already up to date, `1` collision refused or
-filesystem/read error, `2` usage error. `--project` is required — there is no
-default target, and the directory must already exist.
+filesystem/read error, `2` usage error. Exactly one of `--project` or `--global`
+is required. A project target must already exist; global bundle directories are
+created beneath the existing home directory.
 
 ## Use
 
-From the installed project's root:
+After global installation, from any working folder. For a project-only
+installation, use the installed project's root:
 
 ```bash
 omp --astromode
@@ -75,9 +92,10 @@ this mode. The extension blocks new prompts after failed activation or a root
 model/effort change; correct the cause and reload or restart with the flag.
 Child model overrides still require the skill's preflight checks.
 
-The flag comes from `.omp/extensions/astromode.js`; it is not a stock OMP flag.
-Keep extension discovery enabled and launch from the project root: native
-project-extension discovery is cwd-only, unlike ancestor-walking agent discovery.
+The flag comes from the installed `extensions/astromode.js`; it is not a
+stock OMP flag. Keep extension discovery enabled. The global copy under
+`~/.omp/agent/` is discovered across folders. A project-only copy is cwd-only,
+unlike ancestor-walking agent discovery.
 Do not combine this mode with `--no-extensions` unless explicitly loading the
 extension with `--extension`.
 
@@ -104,16 +122,35 @@ levels, not a route, and the bundle does not rely on it.
 
 ## Model routing
 
+### Continuing a consultation
+
+OMP 18.1.17 has native continuation through `hub`, alongside the initial `task`
+spawn. Retain the returned agent id and send later checkpoints with
+`{"op":"send","to":"<same child id>","message":"<revisioned handoff>","await":true}`.
+Wait for the actual report before accepting the checkpoint. `hub list` shows
+idle children; `hub list` with `status: "parked"` can locate parked children
+after a resume. Non-isolated children can be woken or revived; killed children
+and children whose isolated worktrees were cleaned up cannot be resumed.
+
+Keep the findings ledger in both cases. Only when continuation is unavailable
+should a replacement task receive the prior ledger and exact delta. The earlier
+claim that all OMP child context ends after one report was incorrect for this
+version. The [hub implementation](https://github.com/can1357/oh-my-pi/blob/v18.1.17/packages/coding-agent/src/tools/hub/index.ts)
+and [child lifecycle](https://github.com/can1357/oh-my-pi/blob/v18.1.17/packages/coding-agent/src/task/executor.ts)
+define the distinction. `Alt+A` opens OMP's Agent Hub for inspecting agents.
+
+### Routes
+
 | Role | Agent file | Model selector | Thinking |
 |---|---|---|---|
 | lead | none — the session itself | `openai-codex/gpt-6-astra` | `xhigh` |
-| worker | `astra-worker` | `openrouter/z-ai/glm-5.3-flash` | `max` |
-| explorer | `astra-explorer` | `openrouter/z-ai/glm-5.3-flash` | `max` |
-| researcher | `astra-researcher` | `openrouter/z-ai/glm-5.3-flash` | `max` |
-| tester | `astra-tester` | `openrouter/z-ai/glm-5.3-flash` | `max` |
+| worker | `astra-worker` | `opencode-go/glm-5.3-flash` | `max` |
+| explorer | `astra-explorer` | `opencode-go/glm-5.3-flash` | `max` |
+| researcher | `astra-researcher` | `opencode-go/glm-5.3-flash` | `max` |
+| tester | `astra-tester` | `opencode-go/glm-5.3-flash` | `max` |
 | reviewer | `astra-reviewer` | `openai-codex/gpt-6-astra` | `xhigh` |
 
-Both selectors are listed by OMP 18.1.16; `openai-codex` is a built-in provider
+Both selectors are listed by OMP 18.1.17; `openai-codex` is a built-in provider
 with bundled Codex auth, so the Astra route needs no custom provider entry. A
 catalog entry is not account entitlement and not a live call: verify the account
 can use `gpt-6-astra` before relying on it, and never switch providers silently
@@ -161,7 +198,7 @@ The installer does not change OMP session settings.
 
 ## Checked and not checked
 
-`npm run test:omp` runs 24 installer/bundle checks and 21 extension lifecycle
+`npm run test:omp` runs 28 installer/bundle checks and 21 extension lifecycle
 checks, without model calls. Coverage includes an inert unflagged launch, exact
 root model/effort activation, prompt preservation, failure guards, and fresh
 child bindings. The OMP 18.1.16 parser, flag handling, and lifecycle source were
@@ -173,14 +210,41 @@ fresh project and sent only `get_state`: plain OMP kept its normal model/high;
 streaming, and no prompt or model inference was requested. This proves flag
 discovery and startup selection, not live delegated task execution.
 
-Not checked: OMP loading and dispatching the project agents end to end, live
-inference or account entitlement on either route, and one complete coding task
-with independent review. Do those before treating the OMP
-bundle as equivalent to the DSH preset.
+On September 12, the same startup check passed on OMP 18.1.17. The new
+`scripts/check-omp.mjs [--global] --project DIR` also checks all seven installed files,
+conflicting effective route/prewalk settings, catalog efforts, all five roles
+in the native task roster, and the presence of `hub`. It sends no model prompt
+and does not prove live account access; additional CLI overlays can change the
+checked setup.
+
+A live disposable-project acceptance then ran Astra/xhigh as root,
+`astra-worker` on GLM Flash/max, and `astra-reviewer` on Astra/xhigh. The worker
+created a finite-number sum function and six tests; the root caught a coercion
+edge case, repaired it, added a seventh test, and ran 7/7 successfully. The
+independent reviewer checked the actual files and hashes and accepted with no
+material findings. Session records confirm the exact child models and efforts.
+Local evidence is under `test-results/omp-live-readiness/` (ignored by Git).
+
+A second invocation resumed the same saved root session. `hub list` found
+`SumSmokeReview` parked; `hub send` returned `revived` for that exact id. Before
+reading any files, the reviewer recalled its prior acceptance and the closed
+coercion finding from retained context. It then reread both source files and
+confirmed acceptance. The root waited for the settled reply and recorded it;
+no new `task` spawn was used. This verifies native continuation across a process
+restart for that non-isolated child, not just a ledger reconstruction.
+
+The explorer, researcher, and tester were confirmed in the native roster but
+were not separately exercised with live prompts. Other accounts and larger
+projects still need their own acceptance. The OMP and DSH root topologies differ:
+this OMP bundle uses an Astra lead; the DSH preset uses a GLM lead with Astra
+consultations.
 
 ## Remove
 
-The installer has no uninstall step. Stop OMP before removing the bundle:
+The installer has no uninstall step. Stop OMP before removing the bundle.
+The commands below remove a project copy; for a global copy, use
+`~/.omp/agent` in place of `/path/to/project/.omp`, removing only these same
+seven bundle files and keeping config and other installed tools:
 
 ```bash
 rm -f /path/to/project/.omp/extensions/astromode.js

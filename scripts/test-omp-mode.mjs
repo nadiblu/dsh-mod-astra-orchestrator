@@ -9,7 +9,7 @@ import { pathToFileURL } from "node:url";
 import astromode from "../omp/extensions/astromode.js";
 
 const ROOT = { provider: "openai-codex", id: "gpt-6-astra", thinking: { efforts: ["high", "xhigh"] } };
-const FLASH = { provider: "openrouter", id: "z-ai/glm-5.3-flash", thinking: { efforts: ["low", "high", "max"] } };
+const FLASH = { provider: "opencode-go", id: "glm-5.3-flash", thinking: { efforts: ["low", "high", "max"] } };
 const OTHER = { provider: "other", id: "other" };
 const dirs = [];
 after(() => { for (const dir of dirs) rmSync(dir, { recursive: true, force: true }); });

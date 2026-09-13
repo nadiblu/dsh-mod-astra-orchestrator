@@ -7,7 +7,7 @@ tools:
   - glob
   - web_search
   - yield
-model: openrouter/z-ai/glm-5.3-flash:max
+model: opencode-go/glm-5.3-flash:max
 spawns: []
 thinking: max
 ---
