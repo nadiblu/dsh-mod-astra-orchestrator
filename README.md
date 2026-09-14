@@ -1,7 +1,7 @@
 # Astromode · GLM Lead · Astra Checkpoints
 
 <p align="center">
-  <img src="assets/astromode_logo_dark_v2.png" alt="Astromode for OMP" width="900">
+  <img src="assets/astromode_for_omp.png" alt="Astromode for OMP" width="900">
 </p>
 
 Astromode works with both [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/DeepSeek-Harness) and [Oh My Pi (OMP)](https://github.com/can1357/oh-my-pi). In DSH, GLM 5.3 Flash handles ordinary coding while GPT-6 Astra supplies architecture advice, independent final-diff review, and difficult-debugging consultations. In OMP, the same Astra-led workflow runs globally from any folder, with OpenCode Go GLM 5.3 Flash/max execution agents.
