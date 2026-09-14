@@ -1,4 +1,5 @@
 .test-home/
+/.omp/
 node_modules/
 
 # Logs and local test artifacts

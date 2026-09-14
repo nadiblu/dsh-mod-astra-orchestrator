@@ -1,6 +1,6 @@
 ---
 name: astra-orchestrator
-description: Orchestrate coding work in Oh My Pi as the Astra root agent on openai-codex/gpt-6-astra, delegating bounded execution to pinned GLM 5.3 Flash workers on the native task tool and taking independent review on GPT-6 Astra. Use for multi-file features, cross-component debugging, repo-wide changes, parallelizable workstreams, or whenever the user asks to delegate or use agents. Do not use for trivial one-file edits or simple questions.
+description: Orchestrate coding work in Oh My Pi with configurable root, worker, and review models, delegating bounded execution through the native task tool. The shipped defaults use Astra for the lead/reviewer and GLM 5.3 Flash for workers. Use for multi-file features, cross-component debugging, repo-wide changes, parallelizable workstreams, or whenever the user asks to delegate or use agents. Do not use for trivial one-file edits or simple questions.
 ---
 
 # Astra Orchestrator (Oh My Pi)
@@ -16,27 +16,33 @@ Run the root session as the orchestrator: the root plans and decides, bounded
 execution goes to pinned GLM 5.3 Flash agents through OMP's native `task` tool,
 and the root integrates, verifies, and presents the final result.
 
-The bundle this skill belongs to installs this topology:
+The bundle this skill belongs to installs this default topology:
 
 | Role | Agent name | Model | Thinking level | Spawn policy |
 |---|---|---|---|---|
 | root | — (the session itself) | `openai-codex/gpt-6-astra` | `xhigh`; guarded when `--astromode` is active | spawns the agents below |
-| worker | `astra-worker` | `openrouter/z-ai/glm-5.3-flash:max` | `max` | declared empty (`spawns: []`), no `task` tool |
-| explorer | `astra-explorer` | `openrouter/z-ai/glm-5.3-flash:max` | `max` | declared empty (`spawns: []`), no `task` tool |
-| researcher | `astra-researcher` | `openrouter/z-ai/glm-5.3-flash:max` | `max` | declared empty (`spawns: []`), no `task` tool |
-| tester | `astra-tester` | `openrouter/z-ai/glm-5.3-flash:max` | `max` | declared empty (`spawns: []`), no `task` tool |
+| worker | `astra-worker` | `opencode-go/glm-5.3-flash:max` | `max` | declared empty (`spawns: []`), no `task` tool |
+| explorer | `astra-explorer` | `opencode-go/glm-5.3-flash:max` | `max` | declared empty (`spawns: []`), no `task` tool |
+| researcher | `astra-researcher` | `opencode-go/glm-5.3-flash:max` | `max` | declared empty (`spawns: []`), no `task` tool |
+| tester | `astra-tester` | `opencode-go/glm-5.3-flash:max` | `max` | declared empty (`spawns: []`), no `task` tool |
 | reviewer | `astra-reviewer` | `openai-codex/gpt-6-astra:xhigh` | `xhigh` | declared empty (`spawns: []`), no `task` tool |
 
 The model selector, thinking level, tool allowlist, and empty spawn policy live
-in each agent file under `.omp/agents/`: the model carries the effort suffix
+in each installed agent file: project `.omp/agents/` or global
+`~/.omp/agent/agents/`. The model carries the effort suffix
 (`:max`, `:xhigh`) and the file repeats it in `thinking` so neither field depends
 on the other being parsed. The root is a session selection, not an installed
 agent: launch it explicitly (see [Launch](#launch)) or select it in-session.
 
-`max`, not `xhigh`, is deliberate on the GLM workers: the OpenRouter GLM
-catalog exposes `low`, `high`, and `max`, so an `xhigh` request is satisfied by
-`high`. Treat `xhigh` on a GLM agent as a requested-effort downgrade, not an
-equivalent setting.
+`max`, not `xhigh`, is deliberate on the GLM workers: the OpenCode Go GLM
+catalog exposes `low`, `high`, and `max`. The agents pin `max` explicitly.
+
+Run `/astromode-setup` in an interactive OMP session to choose a model and
+thinking level for every role from the live model catalog. The wizard stores
+the choices as `modelRoles` aliases and `task.agentModelOverrides`; those saved
+routes override these defaults on the next `--astromode` launch. The active
+selection is appended to the session prompt so the lead can preflight the
+actual routes.
 
 ## Delegation gate
 
@@ -114,9 +120,10 @@ name.
 ## Preflight the routes before you delegate
 
 These rules alone cannot switch the session model. The optional `--astromode`
-extension selects the root route and loads these rules automatically. Before
-the first spawn, still confirm the effective child routes and efforts rather
-than assuming their agent files have not been overridden:
+extension selects the saved root route and loads these rules automatically.
+Without a setup file, that route is the Astra default shown above. Before the
+first spawn, still confirm the effective child routes and efforts rather than
+assuming their agent files have not been overridden:
 
 ```bash
 omp models list
@@ -124,14 +131,18 @@ omp models list
 
 Check all of:
 
-1. `openai-codex/gpt-6-astra` is present and offers the level you intend for the
-   root (`xhigh`) and for `astra-reviewer` (`xhigh`).
-2. `openrouter/z-ai/glm-5.3-flash` is present and its top level is `max`.
-3. No `task.agentModelOverrides` entry, `task.disabledAgents` entry, or other
+1. The active routing section injected by `--astromode` matches the model and
+   effort you intend for each role. If it does not, run `/astromode-setup`.
+2. Every configured model is present in `omp models list` at its selected
+   effort. The defaults require Astra `xhigh` and GLM Flash `max`; a custom
+   setup may intentionally choose different supported routes.
+3. No `task.disabledAgents` entry or other
    setting in the effective config changes those routes.
 4. The installed agent files still declare `spawns: []`, a `thinking` of `max`
    (or `xhigh` for `astra-reviewer`), and a `tools` list without `task`. Read the
-   installed `.omp/agents/*.md` files under the project root. The bundle's own
+   effective agent files: project `.omp/agents/*.md` if present, otherwise
+   `~/.omp/agent/agents/*.md` for the global install. Project definitions take
+   precedence; do not mistake missing project copies for missing global agents. The bundle's own
    test script checks the *source* bundle, not what is installed at this target,
    so it is not a substitute for reading the installed files.
 
@@ -143,16 +154,22 @@ root makes explicitly, in writing, before the spawn.
 
 ### Launch
 
-With the project bundle installed, launch from the project root:
+With the global bundle installed, launch from any working directory. A
+project-only installation instead requires that project's root:
 
 ```bash
 omp --astromode
 ```
 
-The startup extension selects Astra at `xhigh` and injects these rules before
-each turn. If loaded through that mode, the rules are already active: do not
-ask the user to invoke a skill or launch OMP again. Plain `omp` leaves the mode
-disabled; the flag requires this bundle's extension to be discovered.
+The startup extension selects the saved root route (Astra at `xhigh` by
+default) and injects these rules before each turn. If loaded through that mode,
+the rules are already active: do not ask the user to invoke a skill or launch
+OMP again. Plain `omp` leaves the mode disabled; the flag requires this
+bundle's extension to be discovered. Use `/astromode-setup` before launching
+to change the model map. Global files live under
+`~/.omp/agent/{extensions,skills,agents}` in the default profile. Keep only one
+astromode extension active: older project copies must be backed up and removed
+when migrating to global installation.
 
 For the manual skill path instead, launch
 `omp --model openai-codex/gpt-6-astra:xhigh` without initial task text, then use
@@ -174,10 +191,11 @@ allowlist is what keeps that from happening, so treat the omission as the real
 control and the empty policy as documentation of intent. Do not describe
 `spawns: []` as an enforced empty allowlist.
 
-With `--astromode`, the extension checks catalog support, selects Codex Astra
-at `xhigh`, and blocks a new turn if the root model or effort has changed.
-Reload or restart with the flag after correcting a blocked activation. Without
-the flag, the manual skill does not enforce the root model or effort.
+With `--astromode`, the extension checks catalog support, selects the configured
+root at its configured effort, and blocks a new turn if the root model or effort
+has changed. Reload or restart with the flag after correcting a blocked
+activation. Without the flag, the manual skill does not enforce the root model
+or effort.
 
 The following remain instructed policy, not runtime enforcement:
 
@@ -438,24 +456,46 @@ version-independent contract:
 
 ## Continuity between Astra asks
 
-OMP `task` spawns are self-contained: a child's context ends when its report
-returns, and the tool exposes no steer/continue channel to a finished child.
-Emulate the DSH continuity contract instead — each role stays ONE persistent
-consult across the session:
+Create one consult child per role, then reuse its returned agent id. OMP
+18.1.17 keeps ordinary non-isolated task children available after their first
+report. The companion `hub` tool can wake an idle child or revive a parked one;
+`task` itself does not expose a continuation field.
 
-- Keep one consult per role per session. Before a later consult for that role,
-  record its prior findings, evidence revisions, decisions, and dispositions in
-  a durable workspace note (for example
-  `test-results/astra-consults/<session>/<role>/LEDGER.md`).
-- Deliver continuity inside the new consult prompt: a fresh `task` for the same
-  role in the same session carries the prior report (or its ledger path) plus
-  what changed since, framed as a follow-up — same finding ids, appended new
-  findings, refreshed evidence revision — instead of a cold re-review that
-  re-derives everything from scratch.
+1. Save the child id, role, findings, evidence revisions, and dispositions in
+   a durable note such as
+   `test-results/astra-consults/<session>/<role>/LEDGER.md`.
+2. At the next checkpoint, send the revised handoff to that same child:
+
+   ```json
+   {
+     "op": "send",
+     "to": "<agent id returned by task or hub list>",
+     "message": "Follow-up R2: QUESTION / CONTEXT / EVIDENCE / CURRENT DECISION / PRECISE ASK; prior ledger path; exact delta since R1.",
+     "await": true
+   }
+   ```
+
+3. A send acknowledgement or wait timeout is not a settled review. Read the
+   reply; if still pending, use `hub` with `op: "wait"`, `from: "<same id>"`,
+   and `timeoutMs: 60000`. Keep the completion gate open until the actual
+   report arrives. Do not substitute a shell process id or a job id for the
+   peer's agent id.
+4. If the id is missing after a resume, inspect `hub` with `op: "list"`, then
+   `op: "list", status: "parked"`. Never guess an id from a role name.
+5. If peer messaging is unavailable, or the child is confirmed non-revivable
+   (for example a killed child or an isolated worktree that was cleaned up),
+   record why and start a replacement `task` carrying the prior ledger plus
+   the exact delta. This is ledger-based continuity, not reuse of the same
+   child. Do not spawn a replacement merely because a reply is slow.
+
 - On a delta re-review, re-read the changed and dependent source rather than
   trusting the pasted prior report.
 - Do not renumber findings across asks; alias each consult
   (`architect-N`, `reviewer-N`) in the ledger so history stays auditable.
+
+The parent must use the actual tools exposed by its OMP version. Keep the
+ledger even with native continuation: it records acceptance and survives loss
+of a child. Neither this policy nor `spawns: []` is a runtime reuse lock.
 
 ## Cost and context discipline
 

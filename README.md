@@ -1,10 +1,17 @@
-# GLM Lead · Astra Checkpoints
+# Astromode · GLM Lead · Astra Checkpoints
 
-A selectable mode for [DeepSeek Harness](https://github.com/deepseek-ai/DeepSeek-Harness): GLM 5.3 Flash does ordinary coding; GPT-6 Astra supplies architecture advice, independent final-diff review, and difficult-debugging consultations.
+<p align="center">
+  <img src="assets/astromode_for_omp.png" alt="Astromode for OMP" width="900">
+</p>
+
+Astromode works with both [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/DeepSeek-Harness) and [Oh My Pi (OMP)](https://github.com/can1357/oh-my-pi). In DSH, GLM 5.3 Flash handles ordinary coding while GPT-6 Astra supplies architecture advice, independent final-diff review, and difficult-debugging consultations. In OMP, the same Astra-led workflow runs globally from any folder, with OpenCode Go GLM 5.3 Flash/max execution agents.
 
 The preset and skill retain the identifier `astra-orchestrator` so existing installations update in place.
 
 ## Meet the team
+
+The table below describes the native DSH preset. The separate OMP bundle and its
+provider route are documented under [Also for Oh My Pi](#also-for-oh-my-pi).
 
 | Role | Route | Effort |
 |---|---|---|
@@ -38,7 +45,7 @@ The root must obtain the real consultation result before the dependent step. An 
 Requirements:
 
 - DSH `0.1.5-rc.1`, Node.js 20.10+, and this checkout.
-- A configured, working OpenRouter route exposing `z-ai/glm-5.3-flash`, with credentials and balance. Copy installation preserves that route; configure it in DSH first. OpenCode Go routes additionally need `sessionHeader: "x-opencode-session"` on the profile — the bundle patch sets it (see [setup reference](guides/setup-reference.md)).
+- For the native DSH mode, a configured, working OpenRouter route exposing `z-ai/glm-5.3-flash`, with credentials and balance. Copy installation preserves that route; configure it in DSH first. OpenCode Go routes additionally need `sessionHeader: "x-opencode-session"` on the profile — the OMP bundle patch sets it (see [setup reference](guides/setup-reference.md)).
 - ChatGPT/Codex authentication with access to `gpt-6-astra` for consultations.
 
 ```bash
@@ -83,7 +90,7 @@ Live behavior must be checked separately on a real preset-composed session. One 
 
 ## Cost and limits
 
-The root and execution workers use OpenRouter; Astra consultations use the configured ChatGPT/Codex subscription route. Subscription limits still apply. No percentage savings, speedup, or task-quality improvement is claimed without measurement. [Measurement guide](guides/cost-and-performance.md).
+In the native DSH mode, the root and execution workers use OpenRouter; Astra consultations use the configured ChatGPT/Codex subscription route. Subscription limits still apply. No percentage savings, speedup, or task-quality improvement is claimed without measurement. [Measurement guide](guides/cost-and-performance.md).
 
 ## Update or remove
 
@@ -99,11 +106,22 @@ Activation records retain the original model selection and the exact activated r
 
 ## Also for Oh My Pi
 
-The separate OMP bundle installs into a project's `.omp/` directory:
+Install the separate OMP bundle once for use from any folder:
 
 ```bash
-node install-omp.mjs --project /path/to/project
+node install-omp.mjs --global
+# Then run from whichever project you want to work on:
+omp --astromode
 ```
+
+Use `--project /path/to/project` instead of `--global` for a project-only
+install. Back up older project copies before migrating to global. Verify from
+this checkout with `node scripts/check-omp.mjs --global --project /path/to/project`.
+
+OMP uses an **Astra/xhigh lead and reviewer, with OpenCode Go GLM Flash/max execution agents**.
+The lead reuses consult children through OMP's `hub` tool and keeps a findings
+ledger. Startup, live implementation/review, and reviewer revival after a session
+resume were verified on OMP 18.1.17. Press `Alt+A` to inspect agents.
 
 Its source, installation, and runtime are independent of this native DSH mode. This DSH migration does not alter an installed OMP project or move an existing conversation. See the [OMP guide](guides/omp-port.md).
 

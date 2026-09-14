@@ -17,8 +17,8 @@
 # so every agent keeps the `thinking` value in its own file and this ceiling
 # never gets a chance to change an exact pin.
 #
-# GLM 5.3 Flash is exposed by the OpenRouter catalog at low / high / max. An
-# `xhigh` request is satisfied by `high`, which is why the agents pin `max`.
+# GLM 5.3 Flash is exposed by the OpenCode Go catalog at low / high / max.
+# The agents pin `max` explicitly.
 task:
   maxEffort: max
 

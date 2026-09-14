@@ -64,22 +64,22 @@ const VERIFIED_TOOL_NAMES = new Set([
 // The route contract, one row per installed agent.
 const AGENT_CONTRACT = {
   "astra-worker": {
-    model: "openrouter/z-ai/glm-5.3-flash:max",
+    model: "opencode-go/glm-5.3-flash:max",
     thinking: "max",
     mustHaveTools: ["read", "write", "edit", "bash", "grep", "glob"],
   },
   "astra-explorer": {
-    model: "openrouter/z-ai/glm-5.3-flash:max",
+    model: "opencode-go/glm-5.3-flash:max",
     thinking: "max",
     mustHaveTools: ["read", "grep", "glob", "bash"],
   },
   "astra-researcher": {
-    model: "openrouter/z-ai/glm-5.3-flash:max",
+    model: "opencode-go/glm-5.3-flash:max",
     thinking: "max",
     mustHaveTools: ["read", "grep", "glob", "web_search"],
   },
   "astra-tester": {
-    model: "openrouter/z-ai/glm-5.3-flash:max",
+    model: "opencode-go/glm-5.3-flash:max",
     thinking: "max",
     mustHaveTools: ["read", "write", "edit", "bash", "grep", "glob"],
   },
@@ -125,6 +125,57 @@ function runInstaller(args, options = {}) {
     env: options.env ? { ...process.env, ...options.env } : process.env,
   });
 }
+
+function globalTestOptions(testHome) {
+  const hook = join(tempProject(), "test-homedir.mjs");
+  writeFileSync(hook, 'import os from "node:os";\nimport { syncBuiltinESMExports } from "node:module";\nos.homedir = () => process.env.ASTRA_TEST_HOME;\nsyncBuiltinESMExports();\n');
+  return { hook, env: { ASTRA_TEST_HOME: testHome } };
+}
+
+test("global install uses the user agent directory, preserves config, and is idempotent", () => {
+  const home = tempProject();
+  const target = join(home, ".omp", "agent");
+  mkdirSync(target, { recursive: true });
+  writeFileSync(join(target, "config.yml"), "# keep my defaults\n");
+  const options = globalTestOptions(home);
+  const result = runInstaller(["--global"], options);
+  assert.equal(result.status, 0, result.stderr);
+  for (const file of EXPECTED_FILES) {
+    assert.equal(readFileSync(join(target, file), "utf8"), readFileSync(join(BUNDLE_ROOT, file), "utf8"));
+  }
+  assert.equal(readFileSync(join(target, "config.yml"), "utf8"), "# keep my defaults\n");
+  const again = runInstaller(["--global"], options);
+  assert.equal(again.status, 0);
+  assert.match(again.stdout, /0 to create, 7 identical/);
+});
+
+test("global dry-run and invalid mixed targets make no writes", () => {
+  const home = tempProject();
+  const options = globalTestOptions(home);
+  assert.equal(runInstaller(["--global", "--dry-run"], options).status, 0);
+  assert.deepEqual(walk(home), []);
+  assert.equal(runInstaller(["--global", "--project", home], options).status, 2);
+  assert.deepEqual(walk(home), []);
+});
+
+test("global conflict refuses the complete install before writing missing files", () => {
+  const home = tempProject();
+  const target = join(home, ".omp", "agent");
+  mkdirSync(join(target, "extensions"), { recursive: true });
+  writeFileSync(join(target, "extensions", "astromode.js"), "custom mode\n");
+  assert.equal(runInstaller(["--global"], globalTestOptions(home)).status, 1);
+  assert.deepEqual(walk(target), ["extensions/astromode.js"]);
+  assert.equal(readFileSync(join(target, "extensions", "astromode.js"), "utf8"), "custom mode\n");
+});
+
+test("global install refuses a redirected agent directory without outside writes", () => {
+  const home = tempProject();
+  const outside = tempProject();
+  mkdirSync(join(home, ".omp"));
+  symlinkSync(outside, join(home, ".omp", "agent"));
+  assert.equal(runInstaller(["--global"], globalTestOptions(home)).status, 1);
+  assert.deepEqual(walk(outside), []);
+});
 
 // A deterministic write-failure hook. `--import` loads it before the installer
 // module, it patches node:fs.writeFileSync (and re-syncs the builtin ESM
@@ -603,7 +654,7 @@ test("the skill targets the native task tool and keeps the orchestration rules",
     "astra-tester",
     "astra-reviewer",
     "openai-codex/gpt-6-astra",
-    "openrouter/z-ai/glm-5.3-flash",
+    "opencode-go/glm-5.3-flash",
     "Delegation gate",
     "Delegation contract",
     "Completion gate",

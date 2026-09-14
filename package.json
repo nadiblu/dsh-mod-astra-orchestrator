@@ -14,6 +14,7 @@
   "scripts": {
     "install-mod": "node install.mjs",
     "install-omp": "node install-omp.mjs",
+    "check:omp": "node scripts/check-omp.mjs",
     "test": "node scripts/test-settings-merge.mjs && node scripts/test-preset-composition.mjs",
     "test:omp": "node scripts/test-omp-bundle.mjs && node scripts/test-omp-mode.mjs"
   },
